@@ -1,7 +1,17 @@
+import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '#/lib/auth-context'
-import { accountsApi, transactionsApi, type Transaction, type Account } from '#/lib/api'
+import {
+  accountsApi,
+  transactionsApi,
+  dashboardApi,
+  type Transaction,
+  type Account,
+  type DashboardSummary,
+  type CategoryBreakdown,
+  type MonthlyTrend
+} from '#/lib/api'
 import {
   TrendingUp,
   TrendingDown,
@@ -17,7 +27,10 @@ import {
   Building2,
   CreditCard,
   Banknote,
-  DollarSign
+  DollarSign,
+  Calendar,
+  Layers,
+  ArrowRight
 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
@@ -34,85 +47,171 @@ function DashboardPage() {
   return <AuthenticatedDashboard user={user} />
 }
 
+// Category palette mapping
+const CATEGORY_COLORS: Record<string, string> = {
+  Salary: '#10b981',
+  Groceries: '#34d399',
+  'Dining & Restaurants': '#f59e0b',
+  'Housing & Rent': '#818cf8',
+  Utilities: '#38bdf8',
+  Entertainment: '#ec4899',
+  Transportation: '#a855f7',
+  Healthcare: '#ef4444',
+  Shopping: '#06b6d4',
+  Education: '#3b82f6',
+  Investment: '#60d7cf',
+  Transfer: '#94a3b8',
+  Other: '#64748b',
+}
+
+function getCategoryColor(category: string): string {
+  return CATEGORY_COLORS[category] || '#4fb8b2'
+}
+
 // ---------------------------------------------------------------------------
 // 1. Authenticated Dashboard View
 // ---------------------------------------------------------------------------
 function AuthenticatedDashboard({ user }: { user: { name: string; email: string } | null }) {
+  // Time period filter: null = All Time, or specific month/year
+  const now = new Date()
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
 
-  // Fetch Accounts
+  const [period, setPeriod] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH'>('ALL')
+
+  let queryMonth: number | undefined = undefined
+  let queryYear: number | undefined = undefined
+
+  if (period === 'THIS_MONTH') {
+    queryMonth = currentMonth
+    queryYear = currentYear
+  } else if (period === 'LAST_MONTH') {
+    queryMonth = currentMonth === 1 ? 12 : currentMonth - 1
+    queryYear = currentMonth === 1 ? currentYear - 1 : currentYear
+  }
+
+  // 1. Fetch Dashboard Summary
+  const { data: summary, isLoading: isLoadingSummary } = useQuery<DashboardSummary>({
+    queryKey: ['dashboard-summary', queryMonth, queryYear],
+    queryFn: () => dashboardApi.getSummary(queryMonth, queryYear),
+  })
+
+  // 2. Fetch Category Breakdown
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<CategoryBreakdown[]>({
+    queryKey: ['category-breakdown', queryMonth, queryYear],
+    queryFn: () => dashboardApi.getCategoryBreakdown(queryMonth, queryYear),
+  })
+
+  // 3. Fetch Monthly Cash Flow Trend (Last 6 Months)
+  const { data: monthlyTrends = [], isLoading: isLoadingTrends } = useQuery<MonthlyTrend[]>({
+    queryKey: ['monthly-trend'],
+    queryFn: () => dashboardApi.getMonthlyTrend(6),
+  })
+
+  // 4. Fetch Tracked Accounts
   const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery<Account[]>({
     queryKey: ['accounts'],
     queryFn: accountsApi.getAll,
   })
 
-  // Fetch Recent Transactions
+  // 5. Fetch Recent Transactions
   const { data: transactionsData, isLoading: isLoadingTx } = useQuery({
     queryKey: ['recent-transactions'],
-    queryFn: () => transactionsApi.getAll({ size: 6, sortDir: 'desc' }),
+    queryFn: () => transactionsApi.getAll({ size: 5, sortDir: 'desc' }),
   })
 
   const recentTransactions: Transaction[] = Array.isArray(transactionsData)
     ? transactionsData
     : (transactionsData as { content?: Transaction[] })?.content || []
 
-  // Compute stats client-side or from API
-  const totalBalance = accounts.reduce((acc, a) => acc + (Number(a.balance) || 0), 0)
-
-  const incomeTx = recentTransactions.filter((t) => t.type === 'INCOME')
-  const expenseTx = recentTransactions.filter((t) => t.type === 'EXPENSE')
-
-  const sampleIncome = incomeTx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0)
-  const sampleExpenses = expenseTx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0)
-  const netCashFlow = sampleIncome - sampleExpenses
+  // Metrics derived from live backend or fallback to summary
+  const totalNetWorth = summary?.totalAccountBalance ?? accounts.reduce((acc, a) => acc + (Number(a.balance) || 0), 0)
+  const totalIncome = summary?.totalIncome ?? 0
+  const totalExpenses = summary?.totalExpenses ?? 0
+  const netCashFlow = summary?.netCashFlow ?? (totalIncome - totalExpenses)
 
   const getAccountIcon = (type: string) => {
     switch (type) {
       case 'BANK':
-        return <Building2 className="w-5 h-5 text-[#4fb8b2]" />
+        return <Building2 className="w-4 h-4 text-[#4fb8b2]" />
       case 'SAVINGS':
-        return <Wallet className="w-5 h-5 text-[#6ec89a]" />
+        return <Wallet className="w-4 h-4 text-[#6ec89a]" />
       case 'CREDIT_CARD':
-        return <CreditCard className="w-5 h-5 text-amber-400" />
+        return <CreditCard className="w-4 h-4 text-amber-400" />
       default:
-        return <Banknote className="w-5 h-5 text-teal-300" />
+        return <Banknote className="w-4 h-4 text-teal-300" />
     }
   }
 
+  // Highest value for bar chart scaling
+  const maxTrendVal = Math.max(
+    ...monthlyTrends.map((t) => Math.max(Number(t.income) || 0, Number(t.expense) || 0)),
+    100
+  )
+
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Top Welcome Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#0f1a1e] to-[#12242b] border border-[#8de5db]/15 shadow-xl">
+      {/* Top Welcome Bar & Period Selector */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#0f1a1e] via-[#12242b] to-[#0a1418] border border-[#8de5db]/15 shadow-xl">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#4fb8b2] bg-[#4fb8b2]/10 px-2.5 py-0.5 rounded-full border border-[#4fb8b2]/20">
-              Overview
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#4fb8b2] bg-[#4fb8b2]/10 px-2.5 py-0.5 rounded-full border border-[#4fb8b2]/20">
+              Live Executive Dashboard
             </span>
-            <span className="text-xs text-[#afcdc8]">
+            <span className="text-xs text-[#afcdc8] flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-[#4fb8b2]" />
               {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-            Hello, {user?.name || 'Investor'}! 👋
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1.5 tracking-tight">
+            Welcome back, {user?.name || 'Investor'}! 👋
           </h1>
           <p className="text-xs sm:text-sm text-[#afcdc8] mt-0.5">
-            Here is your live multi-account balance and cash flow ledger.
+            Your real-time multi-account ledger, monthly cash flow, and category spending analytics.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        {/* Time Period Filter Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center p-1 rounded-xl bg-[#070e11] border border-[#8de5db]/20">
+            <button
+              onClick={() => setPeriod('ALL')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                period === 'ALL'
+                  ? 'bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white shadow-sm'
+                  : 'text-[#afcdc8] hover:text-white'
+              }`}
+            >
+              All Time
+            </button>
+            <button
+              onClick={() => setPeriod('THIS_MONTH')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                period === 'THIS_MONTH'
+                  ? 'bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white shadow-sm'
+                  : 'text-[#afcdc8] hover:text-white'
+              }`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setPeriod('LAST_MONTH')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                period === 'LAST_MONTH'
+                  ? 'bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white shadow-sm'
+                  : 'text-[#afcdc8] hover:text-white'
+              }`}
+            >
+              Last Month
+            </button>
+          </div>
+
           <Link
             to="/transactions"
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white text-xs font-semibold shadow-lg shadow-[#4fb8b2]/20 hover:opacity-95 transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white text-xs font-semibold shadow-lg shadow-[#4fb8b2]/20 hover:opacity-95 transition-all"
           >
-            <Plus className="w-4 h-4" />
-            <span>New Transaction</span>
-          </Link>
-          <Link
-            to="/accounts"
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#070e11] border border-[#8de5db]/20 text-[#d7ece8] text-xs font-semibold hover:bg-white/5 transition-all"
-          >
-            <ArrowLeftRight className="w-4 h-4 text-[#4fb8b2]" />
-            <span>Transfer Funds</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Transaction</span>
           </Link>
         </div>
       </div>
@@ -120,7 +219,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Net Worth */}
-        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md">
+        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md hover:border-[#4fb8b2]/30 transition-all">
           <div className="flex items-center justify-between text-[#afcdc8]">
             <span className="text-xs font-medium uppercase tracking-wider">Total Net Worth</span>
             <div className="p-2 rounded-lg bg-[#4fb8b2]/10 text-[#4fb8b2]">
@@ -128,53 +227,72 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              ${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {isLoadingSummary ? (
+                <span className="animate-pulse">Loading...</span>
+              ) : (
+                `$${Number(totalNetWorth).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              )}
             </span>
           </div>
-          <p className="text-[11px] text-[#afcdc8] mt-2 flex items-center gap-1">
-            Across <span className="font-semibold text-white">{accounts.length}</span> active accounts
+          <p className="text-[11px] text-[#afcdc8] mt-2 flex items-center justify-between">
+            <span>Portfolio Across {accounts.length} Accounts</span>
+            <Link to="/accounts" className="text-[#60d7cf] hover:underline font-semibold">
+              View &rarr;
+            </Link>
           </p>
         </div>
 
         {/* Total Income */}
-        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md">
+        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md hover:border-emerald-500/30 transition-all">
           <div className="flex items-center justify-between text-[#afcdc8]">
-            <span className="text-xs font-medium uppercase tracking-wider">Recent Income</span>
+            <span className="text-xs font-medium uppercase tracking-wider">
+              {period === 'ALL' ? 'Total Income' : 'Period Income'}
+            </span>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-bold text-emerald-400 tracking-tight">
-              +${sampleIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className="text-2xl sm:text-3xl font-extrabold text-emerald-400 tracking-tight">
+              {isLoadingSummary ? (
+                <span className="animate-pulse">Loading...</span>
+              ) : (
+                `+$${Number(totalIncome).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              )}
             </span>
           </div>
           <p className="text-[11px] text-emerald-400/80 mt-2 flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> Direct deposits & earnings
+            <ArrowUpRight className="w-3.5 h-3.5" /> Inflow & Salary Credits
           </p>
         </div>
 
         {/* Total Expenses */}
-        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md">
+        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md hover:border-red-500/30 transition-all">
           <div className="flex items-center justify-between text-[#afcdc8]">
-            <span className="text-xs font-medium uppercase tracking-wider">Recent Expenses</span>
+            <span className="text-xs font-medium uppercase tracking-wider">
+              {period === 'ALL' ? 'Total Expenses' : 'Period Expenses'}
+            </span>
             <div className="p-2 rounded-lg bg-red-500/10 text-red-400">
               <TrendingDown className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-bold text-red-400 tracking-tight">
-              -${sampleExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className="text-2xl sm:text-3xl font-extrabold text-red-400 tracking-tight">
+              {isLoadingSummary ? (
+                <span className="animate-pulse">Loading...</span>
+              ) : (
+                `-$${Number(totalExpenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              )}
             </span>
           </div>
           <p className="text-[11px] text-red-400/80 mt-2 flex items-center gap-1">
-            <ArrowDownRight className="w-3.5 h-3.5" /> Outflow & categorized bills
+            <ArrowDownRight className="w-3.5 h-3.5" /> Outflow & Tracked Bills
           </p>
         </div>
 
         {/* Net Cash Flow */}
-        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md">
+        <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md hover:border-[#4fb8b2]/30 transition-all">
           <div className="flex items-center justify-between text-[#afcdc8]">
             <span className="text-xs font-medium uppercase tracking-wider">Net Cash Flow</span>
             <div className="p-2 rounded-lg bg-[#328f97]/15 text-[#60d7cf]">
@@ -183,29 +301,216 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
           </div>
           <div className="mt-3">
             <span
-              className={`text-2xl sm:text-3xl font-bold tracking-tight ${
+              className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
                 netCashFlow >= 0 ? 'text-[#60d7cf]' : 'text-amber-400'
               }`}
             >
-              {netCashFlow >= 0 ? '+' : ''}$
-              {netCashFlow.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {isLoadingSummary ? (
+                <span className="animate-pulse">Loading...</span>
+              ) : (
+                `${netCashFlow >= 0 ? '+' : ''}$${Number(netCashFlow).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              )}
             </span>
           </div>
-          <p className="text-[11px] text-[#afcdc8] mt-2">Income minus Outflow balance</p>
+          <p className="text-[11px] text-[#afcdc8] mt-2 flex items-center justify-between">
+            <span>{netCashFlow >= 0 ? 'Surplus Retained' : 'Deficit Alert'}</span>
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                netCashFlow >= 0
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : 'bg-amber-500/15 text-amber-400'
+              }`}
+            >
+              {netCashFlow >= 0 ? 'POSITIVE' : 'NEGATIVE'}
+            </span>
+          </p>
         </div>
       </div>
 
-      {/* Grid: Tracked Accounts & Recent Ledger */}
+      {/* Row 2: Charts & Visual Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left (2 cols): Monthly Income vs Expense Dual-Bar Chart */}
+        <div className="lg:col-span-2 p-6 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-lg space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-[#4fb8b2]" />
+                Income vs Expense Monthly Trend
+              </h2>
+              <p className="text-xs text-[#afcdc8] mt-0.5">
+                Past 6-month cash flow trajectory and monthly savings margins.
+              </p>
+            </div>
+            {/* Chart Legend */}
+            <div className="flex items-center gap-4 text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-emerald-400">
+                <span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block" />
+                Income
+              </span>
+              <span className="flex items-center gap-1.5 text-red-400">
+                <span className="w-3 h-3 rounded-sm bg-red-400 inline-block" />
+                Expense
+              </span>
+            </div>
+          </div>
+
+          {/* Interactive Bar Chart */}
+          {isLoadingTrends ? (
+            <div className="h-56 flex items-center justify-center text-xs text-[#afcdc8] animate-pulse">
+              Computing trend analytics...
+            </div>
+          ) : monthlyTrends.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-xs text-[#afcdc8]">
+              No trend history recorded yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="h-52 flex items-end justify-between gap-2 sm:gap-6 pt-6 px-2 border-b border-[#8de5db]/15">
+                {monthlyTrends.map((t) => {
+                  const incomeH = Math.max(
+                    Math.round(((Number(t.income) || 0) / maxTrendVal) * 160),
+                    4
+                  )
+                  const expenseH = Math.max(
+                    Math.round(((Number(t.expense) || 0) / maxTrendVal) * 160),
+                    4
+                  )
+
+                  return (
+                    <div
+                      key={t.monthKey}
+                      className="flex-1 flex flex-col items-center gap-2 group relative"
+                    >
+                      {/* Tooltip on Hover */}
+                      <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 px-3 py-1.5 rounded-lg bg-[#070e11] border border-[#8de5db]/30 text-white text-[11px] shadow-2xl whitespace-nowrap">
+                        <span className="font-bold text-[#60d7cf]">{t.monthLabel}</span>
+                        <div className="text-emerald-400">Income: ${Number(t.income).toFixed(2)}</div>
+                        <div className="text-red-400">Expense: ${Number(t.expense).toFixed(2)}</div>
+                      </div>
+
+                      {/* Bars Container */}
+                      <div className="w-full flex items-end justify-center gap-1 sm:gap-2 h-44">
+                        {/* Income Bar */}
+                        <div
+                          style={{ height: `${incomeH}px` }}
+                          className="w-1/2 max-w-[24px] rounded-t-md bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-md group-hover:brightness-110 transition-all duration-300"
+                        />
+                        {/* Expense Bar */}
+                        <div
+                          style={{ height: `${expenseH}px` }}
+                          className="w-1/2 max-w-[24px] rounded-t-md bg-gradient-to-t from-red-600 to-red-400 shadow-md group-hover:brightness-110 transition-all duration-300"
+                        />
+                      </div>
+
+                      {/* Month Label */}
+                      <span className="text-[11px] font-semibold text-[#afcdc8] group-hover:text-white transition-colors">
+                        {t.monthLabel.split(' ')[0]}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-[#afcdc8] pt-1">
+                <span>Displaying past 6 calendar months</span>
+                <span>Values scaled dynamically to peak monthly cash flow</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right (1 col): Spending by Category Breakdown */}
+        <div className="p-6 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-lg space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-[#4fb8b2]" />
+                Spending by Category
+              </h2>
+              <p className="text-xs text-[#afcdc8] mt-0.5">
+                {period === 'ALL' ? 'All-Time Outflow' : 'Period Outflow'}
+              </p>
+            </div>
+            <span className="text-xs font-bold text-[#60d7cf]">
+              ${Number(totalExpenses).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          {isLoadingCategories ? (
+            <div className="h-48 flex items-center justify-center text-xs text-[#afcdc8] animate-pulse">
+              Aggregating categories...
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="h-48 flex flex-col items-center justify-center text-center p-4">
+              <p className="text-xs text-[#afcdc8]">No expense categories recorded yet.</p>
+              <Link
+                to="/transactions"
+                className="mt-3 text-xs font-semibold text-[#60d7cf] hover:underline inline-flex items-center gap-1"
+              >
+                Add First Expense &rarr;
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Category Segmented Progress Bar */}
+              <div className="h-3.5 w-full rounded-full bg-[#070e11] overflow-hidden flex border border-[#8de5db]/20">
+                {categories.map((cat, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      width: `${Math.max(cat.percentage || 0, 3)}%`,
+                      backgroundColor: getCategoryColor(cat.category),
+                    }}
+                    title={`${cat.category}: $${Number(cat.totalAmount).toFixed(2)} (${cat.percentage}%)`}
+                    className="h-full hover:opacity-85 transition-opacity"
+                  />
+                ))}
+              </div>
+
+              {/* Category List */}
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                {categories.map((cat, idx) => {
+                  const color = getCategoryColor(cat.category)
+                  return (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-xl bg-[#070e11]/60 border border-[#8de5db]/10 flex items-center justify-between hover:border-[#8de5db]/25 transition-all"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="text-xs font-semibold text-white">{cat.category}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-white">
+                          ${Number(cat.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="block text-[10px] text-[#afcdc8]">
+                          {cat.percentage?.toFixed(1) || 0}%
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Tracked Accounts Portfolio & Recent Ledger */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Tracked Accounts List */}
+        {/* Left: Tracked Accounts */}
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-[#4fb8b2]" />
-              Tracked Accounts
+              <Layers className="w-5 h-5 text-[#4fb8b2]" />
+              Tracked Accounts ({accounts.length})
             </h2>
-            <Link to="/accounts" className="text-xs font-semibold text-[#60d7cf] hover:underline">
-              Manage All &rarr;
+            <Link to="/accounts" className="text-xs font-semibold text-[#60d7cf] hover:underline flex items-center gap-1">
+              Manage <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
@@ -226,7 +531,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               accounts.map((account) => (
                 <div
                   key={account.id}
-                  className="p-4 rounded-xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 flex items-center justify-between hover:border-[#4fb8b2]/40 transition-all"
+                  className="p-4 rounded-xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 flex items-center justify-between hover:border-[#4fb8b2]/40 transition-all shadow-sm"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-[#070e11] border border-[#8de5db]/20 flex items-center justify-center">
@@ -246,35 +551,27 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
                 </div>
               ))
             )}
-          </div>
 
-          {/* Quick Shortcuts Banner */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-[#12242b] to-[#0a1418] border border-[#8de5db]/20 space-y-3">
-            <div className="flex items-center gap-2 text-white font-semibold text-sm">
-              <PieChart className="w-4 h-4 text-[#4fb8b2]" />
-              <span>Budget Health Indicator</span>
-            </div>
-            <p className="text-xs text-[#afcdc8] leading-relaxed">
-              Track category limits and get alerts at 80% and 100% spending thresholds.
-            </p>
+            {/* Quick Inter-Account Transfer Action */}
             <Link
-              to="/budgets"
-              className="inline-block text-xs font-semibold text-[#60d7cf] hover:underline"
+              to="/accounts"
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-[#070e11] border border-[#8de5db]/20 text-[#d7ece8] text-xs font-semibold hover:bg-white/5 transition-all"
             >
-              Configure Budgets &rarr;
+              <ArrowLeftRight className="w-4 h-4 text-[#4fb8b2]" />
+              <span>Execute Zero-Sum Transfer</span>
             </Link>
           </div>
         </div>
 
-        {/* Right: Recent Transactions Table */}
+        {/* Right: Recent Transactions Ledger */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <ArrowLeftRight className="w-5 h-5 text-[#4fb8b2]" />
               Recent Transactions
             </h2>
-            <Link to="/transactions" className="text-xs font-semibold text-[#60d7cf] hover:underline">
-              View Full Ledger &rarr;
+            <Link to="/transactions" className="text-xs font-semibold text-[#60d7cf] hover:underline flex items-center gap-1">
+              View Full Ledger <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 

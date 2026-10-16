@@ -183,6 +183,14 @@ export interface CategoryBreakdown {
   percentage?: number
 }
 
+export interface MonthlyTrend {
+  monthKey: string
+  monthLabel: string
+  income: number
+  expense: number
+  netFlow: number
+}
+
 // ---------------------------------------------------------------------------
 // API Methods
 // ---------------------------------------------------------------------------
@@ -262,6 +270,12 @@ export const dashboardApi = {
   getCategoryBreakdown: async (month?: number, year?: number) => {
     const res = await api.get<CategoryBreakdown[]>('/dashboard/category-breakdown', {
       params: { month, year },
+    })
+    return res.data
+  },
+  getMonthlyTrend: async (months: number = 6) => {
+    const res = await api.get<MonthlyTrend[]>('/dashboard/monthly-trend', {
+      params: { months },
     })
     return res.data
   },
