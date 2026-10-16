@@ -1,0 +1,28 @@
+{
+  "projectName": "finance-client",
+  "mode": "file-router",
+  "typescript": true,
+  "packageManager": "npm",
+  "includeExamples": false,
+  "tailwind": true,
+  "projectPreset": "default",
+  "addOnOptions": {},
+  "git": true,
+  "install": true,
+  "intent": true,
+  "routerOnly": false,
+  "version": 1,
+  "framework": "react",
+  "chosenAddOns": [
+    "biome",
+    "vercel",
+    "sentry",
+    "form",
+    "shadcn",
+    "t3env",
+    "table",
+    "better-auth",
+    "tanstack-query",
+    "neon"
+  ]
+}
