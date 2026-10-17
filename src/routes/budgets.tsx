@@ -8,6 +8,7 @@ import {
   type CreateBudgetPayload,
   getErrorMessage
 } from '#/lib/api'
+import { useCurrency } from '#/lib/currency-context'
 import {
   PieChart,
   Plus,
@@ -61,6 +62,7 @@ function BudgetsPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { currency, currencySymbol, formatCurrency } = useCurrency()
 
   // Selected Period
   const today = new Date()
@@ -374,10 +376,10 @@ function BudgetsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-xl bg-[#070e11]/80 border border-[#8de5db]/10">
             <span className="text-[11px] font-semibold text-[#afcdc8] uppercase tracking-wider block">
-              Total Budgeted
+              Total Budgeted ({currency})
             </span>
             <span className="text-2xl font-extrabold text-white mt-1 block">
-              ${totalBudget.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(totalBudget)}
             </span>
             <span className="text-[10px] text-[#afcdc8]">Allocated spending ceiling</span>
           </div>
@@ -387,7 +389,7 @@ function BudgetsPage() {
               Total Consumed
             </span>
             <span className="text-2xl font-extrabold text-white mt-1 block">
-              ${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(totalSpent)}
             </span>
             <span className="text-[10px] text-[#afcdc8]">Actual recorded expenses</span>
           </div>
@@ -401,8 +403,7 @@ function BudgetsPage() {
                 totalRemaining >= 0 ? 'text-[#60d7cf]' : 'text-red-400'
               }`}
             >
-              {totalRemaining >= 0 ? '+' : ''}$
-              {totalRemaining.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {totalRemaining >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalRemaining))}
             </span>
             <span className="text-[10px] text-[#afcdc8]">
               {totalRemaining >= 0 ? 'Safe unspent allowance' : 'Total deficit excess'}
@@ -506,7 +507,7 @@ function BudgetsPage() {
                         {budget.category}
                       </h3>
                       <span className="text-[11px] text-[#afcdc8]">
-                        Limit: ${limit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Limit: {formatCurrency(limit)}
                       </span>
                     </div>
 
@@ -529,7 +530,7 @@ function BudgetsPage() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs font-semibold">
                       <span className="text-[#afcdc8]">
-                        ${spent.toFixed(2)} spent
+                        {formatCurrency(spent)} spent
                       </span>
                       <span
                         className={
@@ -567,7 +568,7 @@ function BudgetsPage() {
                           remaining >= 0 ? 'text-[#60d7cf]' : 'text-red-400'
                         }`}
                       >
-                        {remaining >= 0 ? '+' : ''}${remaining.toFixed(2)}
+                        {remaining >= 0 ? '+' : '-'}{formatCurrency(Math.abs(remaining))}
                       </span>
                     </div>
                     <div className="text-right">
@@ -671,10 +672,10 @@ function BudgetsPage() {
               {/* Limit Amount */}
               <div>
                 <label className="block text-xs font-semibold text-[#d7ece8] uppercase tracking-wider mb-1.5">
-                  Monthly Limit Amount ($)
+                  Monthly Limit Amount ({currency})
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-[#afcdc8] text-sm font-bold">$</span>
+                  <span className="absolute left-3.5 top-2.5 text-[#60d7cf] text-sm font-bold">{currencySymbol}</span>
                   <input
                     name="limitAmount"
                     type="number"
@@ -730,7 +731,7 @@ function BudgetsPage() {
             <div>
               <h3 className="text-base font-bold text-white">Remove Budget Cap?</h3>
               <p className="text-xs text-[#afcdc8] mt-1 leading-relaxed">
-                Are you sure you want to remove the <span className="font-bold text-white">{deletingBudget.category}</span> budget limit of ${Number(deletingBudget.limitAmount).toFixed(2)}? Your transaction records will remain unaffected.
+                Are you sure you want to remove the <span className="font-bold text-white">{deletingBudget.category}</span> budget limit of {formatCurrency(Number(deletingBudget.limitAmount))}? Your transaction records will remain unaffected.
               </p>
             </div>
             <div className="flex items-center justify-end gap-3 pt-2">

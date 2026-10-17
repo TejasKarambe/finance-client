@@ -10,6 +10,7 @@ import {
   type TransferPayload, 
   getErrorMessage 
 } from '#/lib/api'
+import { useCurrency, SUPPORTED_CURRENCIES } from '#/lib/currency-context'
 import {
   WalletCards,
   Building2,
@@ -34,6 +35,7 @@ function AccountsPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { currency, currencySymbol, formatCurrency, formatRawNumber, convert, autoConvert } = useCurrency()
 
   // Redirect if not logged in
   if (!isAuthenticated && typeof window !== 'undefined') {
@@ -116,7 +118,10 @@ function AccountsPage() {
     },
   })
 
-  const totalBalance = accounts.reduce((acc, a) => acc + (Number(a.balance) || 0), 0)
+  const totalBalance = accounts.reduce(
+    (acc, a) => acc + formatRawNumber(Number(a.balance) || 0, a.currency),
+    0
+  )
 
   const getAccountStyle = (type: AccountType) => {
     switch (type) {
@@ -180,9 +185,9 @@ function AccountsPage() {
         {/* Global Net Worth & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="px-4 py-2.5 rounded-xl bg-[#070e11] border border-[#8de5db]/20 flex flex-col justify-center text-left">
-            <span className="text-[10px] text-[#afcdc8] uppercase font-semibold">Total Aggregate Balance</span>
+            <span className="text-[10px] text-[#afcdc8] uppercase font-semibold">Total Aggregate Balance ({currency})</span>
             <span className="text-xl sm:text-2xl font-black text-white">
-              ${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(totalBalance)}
             </span>
           </div>
 
@@ -315,8 +320,13 @@ function AccountsPage() {
                       Current Balance
                     </span>
                     <div className="text-3xl font-black text-white mt-0.5 tracking-tight">
-                      ${Number(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {formatCurrency(Number(account.balance), account.currency)}
                     </div>
+                    {autoConvert && account.currency && account.currency.toUpperCase() !== currency.toUpperCase() && (
+                      <span className="text-[10px] text-[#60d7cf]/80 mt-1 font-mono block">
+                        Original: {account.currency} {Number(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -325,10 +335,10 @@ function AccountsPage() {
                   <span>
                     Opening:{' '}
                     <span className="font-semibold text-[#d7ece8]">
-                      ${Number(account.openingBalance ?? account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {formatCurrency(Number(account.openingBalance ?? account.balance), account.currency)}
                     </span>
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-[#070e11] border border-[#8de5db]/15 text-[10px] font-mono">
+                  <span className="px-2 py-0.5 rounded-md bg-[#070e11] border border-[#8de5db]/15 text-[10px] font-mono text-[#60d7cf]">
                     {account.currency || 'USD'}
                   </span>
                 </div>
@@ -415,8 +425,8 @@ function AccountsPage() {
                     Opening Balance
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#afcdc8] text-sm">
-                      $
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#60d7cf] text-sm font-bold">
+                      {currencySymbol}
                     </span>
                     <input
                       name="balance"
@@ -425,25 +435,25 @@ function AccountsPage() {
                       min="0"
                       defaultValue="0.00"
                       required
-                      className="w-full pl-7 pr-3 py-2.5 bg-[#070e11] border border-[#8de5db]/20 rounded-xl text-white text-sm focus:outline-none focus:border-[#4fb8b2]"
+                      className="w-full pl-8 pr-3 py-2.5 bg-[#070e11] border border-[#8de5db]/20 rounded-xl text-white text-sm focus:outline-none focus:border-[#4fb8b2]"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-[#d7ece8] uppercase tracking-wider mb-1.5">
-                    Currency
+                    Account Currency
                   </label>
                   <select
                     name="currency"
-                    defaultValue="USD"
+                    defaultValue={currency}
                     className="w-full px-3 py-2.5 bg-[#070e11] border border-[#8de5db]/20 rounded-xl text-white text-sm focus:outline-none focus:border-[#4fb8b2]"
                   >
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="INR">INR (₹)</option>
-                    <option value="CAD">CAD ($)</option>
+                    {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.code} ({c.symbol}) - {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -511,10 +521,11 @@ function AccountsPage() {
                 const formData = new FormData(form)
                 const name = formData.get('name') as string
                 const type = formData.get('type') as AccountType
+                const accountCurrency = (formData.get('currency') as string) || 'USD'
 
                 updateMutation.mutate({
                   id: editingAccount.id,
-                  payload: { name, type },
+                  payload: { name, type, currency: accountCurrency },
                 })
               }}
               className="space-y-4"
@@ -546,6 +557,23 @@ function AccountsPage() {
                   <option value="CASH">Cash &amp; Physical Wallet</option>
                   <option value="CREDIT_CARD">Credit Card</option>
                   <option value="INVESTMENT">Investment &amp; Stocks</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#d7ece8] uppercase tracking-wider mb-1.5">
+                  Currency
+                </label>
+                <select
+                  name="currency"
+                  defaultValue={editingAccount.currency || currency}
+                  className="w-full px-3.5 py-2.5 bg-[#070e11] border border-[#8de5db]/20 rounded-xl text-white text-sm focus:outline-none focus:border-[#4fb8b2]"
+                >
+                  {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.code} ({c.symbol}) - {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -618,6 +646,7 @@ interface TransferDialogProps {
 }
 
 function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: TransferDialogProps) {
+  const { formatCurrency, convert } = useCurrency()
   const [sourceId, setSourceId] = useState<number>(accounts[0]?.id || 0)
   const [destId, setDestId] = useState<number>(
     accounts.find((a) => a.id !== accounts[0]?.id)?.id || 0
@@ -629,9 +658,21 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
   const sourceAccount = accounts.find((a) => a.id === sourceId)
   const destAccount = accounts.find((a) => a.id === destId)
 
+  const sourceCurrency = (sourceAccount?.currency || 'USD').toUpperCase()
+  const destCurrency = (destAccount?.currency || 'USD').toUpperCase()
+  const isDifferentCurrency = sourceCurrency !== destCurrency
+
   const numAmount = parseFloat(amount) || 0
   const sourceBalance = Number(sourceAccount?.balance) || 0
   const isInsufficient = numAmount > sourceBalance
+
+  const convertedDestAmount = isDifferentCurrency
+    ? convert(numAmount, sourceCurrency, destCurrency)
+    : numAmount
+
+  const conversionRate = isDifferentCurrency
+    ? convert(1, sourceCurrency, destCurrency)
+    : 1
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -641,10 +682,13 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
       sourceAccountId: sourceId,
       destinationAccountId: destId,
       amount: numAmount,
+      destinationAmount: isDifferentCurrency ? convertedDestAmount : undefined,
       description,
       transferDate: date,
     })
   }
+
+  const sourceSymbol = SUPPORTED_CURRENCIES[sourceCurrency]?.symbol || '$'
 
   return (
     <div className="w-full max-w-lg p-6 sm:p-8 rounded-2xl bg-[#0f1a1e] border border-[#8de5db]/25 shadow-2xl relative">
@@ -662,7 +706,7 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
         <h2 className="text-xl font-bold text-white">Inter-Account Transfer</h2>
       </div>
       <p className="text-xs text-[#afcdc8] mb-6">
-        Move funds between your accounts without altering net income or expense totals.
+        Move funds between your accounts with optional real-time currency auto-conversion.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -686,7 +730,7 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} (${Number(a.balance).toFixed(2)})
+                  {a.name} ({formatCurrency(Number(a.balance), a.currency)})
                 </option>
               ))}
             </select>
@@ -705,7 +749,7 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
                 .filter((a) => a.id !== sourceId)
                 .map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} (${Number(a.balance).toFixed(2)})
+                    {a.name} ({formatCurrency(Number(a.balance), a.currency)})
                   </option>
                 ))}
             </select>
@@ -716,11 +760,11 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-[#d7ece8] uppercase tracking-wider mb-1.5">
-              Amount to Transfer
+              Amount ({sourceCurrency})
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#afcdc8] text-sm">
-                $
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#60d7cf] text-sm font-bold">
+                {sourceSymbol}
               </span>
               <input
                 type="number"
@@ -730,7 +774,7 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className={`w-full pl-7 pr-3 py-2.5 bg-[#070e11] border rounded-xl text-white text-sm focus:outline-none ${
+                className={`w-full pl-8 pr-3 py-2.5 bg-[#070e11] border rounded-xl text-white text-sm focus:outline-none ${
                   isInsufficient
                     ? 'border-red-500 focus:border-red-500'
                     : 'border-[#8de5db]/20 focus:border-[#4fb8b2]'
@@ -739,7 +783,7 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
             </div>
             {isInsufficient && (
               <span className="text-[11px] text-red-400 mt-1 block">
-                Exceeds available balance (${sourceBalance.toFixed(2)})
+                Exceeds available balance ({formatCurrency(sourceBalance, sourceCurrency)})
               </span>
             )}
           </div>
@@ -758,6 +802,29 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
           </div>
         </div>
 
+        {/* Multi-Currency Auto Conversion Preview Pill */}
+        {isDifferentCurrency && numAmount > 0 && (
+          <div className="p-3 rounded-xl bg-gradient-to-r from-[#328f97]/20 to-[#4fb8b2]/10 border border-[#4fb8b2]/30 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-md bg-[#4fb8b2]/20 text-[#60d7cf]">
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <span className="font-bold text-white block">Auto FX Conversion</span>
+                <span className="text-[11px] text-[#afcdc8]">
+                  1 {sourceCurrency} &asymp; {conversionRate.toFixed(4)} {destCurrency}
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-[#afcdc8] block uppercase">Destination Credits</span>
+              <span className="font-bold text-[#60d7cf]">
+                {formatCurrency(convertedDestAmount, destCurrency)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Description */}
         <div>
           <label className="block text-xs font-semibold text-[#d7ece8] uppercase tracking-wider mb-1.5">
@@ -767,7 +834,7 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. Monthly allocation to emergency fund"
+            placeholder="e.g. Monthly allocation to savings"
             className="w-full px-3.5 py-2.5 bg-[#070e11] border border-[#8de5db]/20 rounded-xl text-white text-sm focus:outline-none focus:border-[#4fb8b2]"
           />
         </div>
@@ -779,13 +846,13 @@ function TransferFundsDialog({ accounts, onClose, onSubmit, isLoading }: Transfe
             <div className="flex justify-between text-white">
               <span>{sourceAccount.name}:</span>
               <span className={isInsufficient ? 'text-red-400 font-bold' : 'text-emerald-400 font-mono'}>
-                ${(sourceBalance - numAmount).toFixed(2)}
+                {formatCurrency(sourceBalance - numAmount, sourceCurrency)}
               </span>
             </div>
             <div className="flex justify-between text-white">
               <span>{destAccount.name}:</span>
               <span className="text-emerald-400 font-mono">
-                ${(Number(destAccount.balance) + numAmount).toFixed(2)}
+                {formatCurrency(Number(destAccount.balance) + convertedDestAmount, destCurrency)}
               </span>
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
   type TransactionType,
   getErrorMessage 
 } from '#/lib/api'
+import { useCurrency } from '#/lib/currency-context'
 import { 
   Repeat, 
   Plus, 
@@ -60,6 +61,7 @@ function RecurringPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { currency, currencySymbol, formatCurrency } = useCurrency()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<RecurringTransaction | null>(null)
@@ -316,10 +318,10 @@ function RecurringPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 rounded-2xl bg-[#0d1b20] border border-[#8de5db]/15 shadow-sm">
           <span className="text-[11px] font-medium text-[#afcdc8] uppercase tracking-wider">
-            Monthly Recurring Burn
+            Monthly Recurring Burn ({currency})
           </span>
           <div className="text-2xl font-bold text-white mt-1">
-            ${monthlyExpenseBurn.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrency(monthlyExpenseBurn)}
           </div>
           <span className="text-[10px] text-[#afcdc8]/70 mt-1 block">
             Across {activeSchedules.filter((s) => s.type === 'EXPENSE').length} active expense commitments
@@ -434,8 +436,8 @@ function RecurringPage() {
 
                 <div className="mt-3 flex items-baseline justify-between">
                   <span className="text-xl font-bold text-white">
-                    {item.type === 'INCOME' ? '+' : '-'}$
-                    {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {item.type === 'INCOME' ? '+' : '-'}
+                    {formatCurrency(item.amount)}
                   </span>
                   <span className="text-xs text-[#afcdc8] flex items-center gap-1">
                     <CreditCard className="w-3 h-3 text-[#4fb8b2]" />
@@ -522,7 +524,7 @@ function RecurringPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#afcdc8] mb-1">Amount ($) *</label>
+                  <label className="block text-xs font-medium text-[#afcdc8] mb-1">Amount ({currencySymbol} {currency}) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -589,7 +591,7 @@ function RecurringPage() {
                   >
                     {accounts.map((acc) => (
                       <option key={acc.id} value={acc.id}>
-                        {acc.name} (${acc.balance.toFixed(2)})
+                        {acc.name} ({formatCurrency(acc.balance, acc.currency)})
                       </option>
                     ))}
                   </select>

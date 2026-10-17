@@ -10,6 +10,7 @@ import {
   type AiInsightResponse,
   getErrorMessage
 } from '#/lib/api'
+import { useCurrency } from '#/lib/currency-context'
 import {
   FileSpreadsheet,
   Download,
@@ -75,6 +76,7 @@ function getCategoryColor(category: string): string {
 function ReportsPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const { currency, currencySymbol, formatCurrency } = useCurrency()
 
   const today = new Date()
   const [reportType, setReportType] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY')
@@ -404,7 +406,7 @@ function ReportsPage() {
                     <span>{item.recommendedAction}</span>
                     {item.potentialMonthlySavings > 0 && (
                       <span className="font-bold text-emerald-400 shrink-0 ml-1">
-                        +${item.potentialMonthlySavings}/mo
+                        +{formatCurrency(item.potentialMonthlySavings)}/mo
                       </span>
                     )}
                   </div>
@@ -421,7 +423,7 @@ function ReportsPage() {
         <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md">
           <div className="flex items-center justify-between text-[#afcdc8]">
             <span className="text-xs font-medium uppercase tracking-wider">
-              {reportType === 'MONTHLY' ? 'Monthly Inflow' : 'Annual Inflow'}
+              {reportType === 'MONTHLY' ? 'Monthly Inflow' : 'Annual Inflow'} ({currency})
             </span>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
               <TrendingUp className="w-4 h-4" />
@@ -432,12 +434,12 @@ function ReportsPage() {
               {isLoading ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `+$${Number(activeIncome).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                `+${formatCurrency(activeIncome)}`
               )}
             </span>
           </div>
           <p className="text-[11px] text-emerald-400/80 mt-2 flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> Gross earnings & deposits
+            <ArrowUpRight className="w-3.5 h-3.5" /> Gross earnings &amp; deposits
           </p>
         </div>
 
@@ -456,7 +458,7 @@ function ReportsPage() {
               {isLoading ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `-$${Number(activeExpense).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                `-${formatCurrency(activeExpense)}`
               )}
             </span>
           </div>
@@ -482,7 +484,7 @@ function ReportsPage() {
               {isLoading ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `${activeNet >= 0 ? '+' : ''}$${Number(activeNet).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                `${activeNet >= 0 ? '+' : '-'}${formatCurrency(Math.abs(activeNet))}`
               )}
             </span>
           </div>
@@ -548,9 +550,9 @@ function ReportsPage() {
                 <thead className="bg-[#070e11] text-[#afcdc8] uppercase font-semibold text-[10px] tracking-wider border-b border-[#8de5db]/10">
                   <tr>
                     <th className="py-3 px-4">Calendar Month</th>
-                    <th className="py-3 px-4 text-right">Inflow ($)</th>
-                    <th className="py-3 px-4 text-right">Outflow ($)</th>
-                    <th className="py-3 px-4 text-right">Net Flow ($)</th>
+                    <th className="py-3 px-4 text-right">Inflow ({currencySymbol})</th>
+                    <th className="py-3 px-4 text-right">Outflow ({currencySymbol})</th>
+                    <th className="py-3 px-4 text-right">Net Flow ({currencySymbol})</th>
                     <th className="py-3 px-4 text-right">Savings Rate</th>
                   </tr>
                 </thead>
@@ -567,17 +569,17 @@ function ReportsPage() {
                           {MONTH_NAMES[item.month - 1]}
                         </td>
                         <td className="py-3 px-4 text-right text-emerald-400">
-                          {inc > 0 ? `+$${inc.toFixed(2)}` : '$0.00'}
+                          {inc > 0 ? `+${formatCurrency(inc)}` : formatCurrency(0)}
                         </td>
                         <td className="py-3 px-4 text-right text-red-400">
-                          {exp > 0 ? `-$${exp.toFixed(2)}` : '$0.00'}
+                          {exp > 0 ? `-${formatCurrency(exp)}` : formatCurrency(0)}
                         </td>
                         <td
                           className={`py-3 px-4 text-right font-bold ${
                             net >= 0 ? 'text-[#60d7cf]' : 'text-amber-400'
                           }`}
                         >
-                          {net >= 0 ? '+' : ''}${net.toFixed(2)}
+                          {net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(net))}
                         </td>
                         <td className="py-3 px-4 text-right">
                           <span
@@ -630,7 +632,7 @@ function ReportsPage() {
                   <thead className="bg-[#070e11] text-[#afcdc8] uppercase font-semibold text-[10px] tracking-wider border-b border-[#8de5db]/10">
                     <tr>
                       <th className="py-3 px-4">Category</th>
-                      <th className="py-3 px-4 text-right">Total Outflow ($)</th>
+                      <th className="py-3 px-4 text-right">Total Outflow ({currencySymbol})</th>
                       <th className="py-3 px-4 text-right">Percentage Share</th>
                       <th className="py-3 px-4 w-44">Distribution Meter</th>
                     </tr>
@@ -649,7 +651,7 @@ function ReportsPage() {
                             <span className="font-bold text-white">{c.category}</span>
                           </td>
                           <td className="py-3.5 px-4 text-right font-bold text-white">
-                            ${Number(c.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {formatCurrency(Number(c.totalAmount))}
                           </td>
                           <td className="py-3.5 px-4 text-right text-[#60d7cf] font-semibold">
                             {pct.toFixed(1)}%
@@ -697,7 +699,7 @@ function ReportsPage() {
                       </div>
                     </div>
                     <span className="text-xs font-bold text-white">
-                      ${Number(c.totalAmount).toFixed(2)}
+                      {formatCurrency(Number(c.totalAmount))}
                     </span>
                   </div>
                 ))}

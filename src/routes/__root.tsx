@@ -9,6 +9,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import { ThemeProvider } from '#/lib/theme-context'
 import { AuthProvider } from '#/lib/auth-context'
+import { CurrencyProvider } from '#/lib/currency-context'
 import { MuiAppProvider } from '#/lib/mui-provider'
 import { AppNavbar } from '#/components/layout/AppNavbar'
 
@@ -53,17 +54,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="min-h-screen bg-[#070e11] text-[#d7ece8] font-sans antialiased selection:bg-[#4fb8b2]/30 selection:text-white transition-colors duration-200">
         <ThemeProvider>
           <AuthProvider>
-            <MuiAppProvider>
-              <div className="flex flex-col min-h-screen">
-                <AppNavbar />
-                <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-                  {children}
-                </main>
-                <footer className="border-t border-[#8de5db]/10 py-6 text-center text-xs text-[#afcdc8]/60">
-                  <p>ApexFinance Enterprise &copy; 2026. Production Grade Financial Engine.</p>
-                </footer>
-              </div>
-            </MuiAppProvider>
+            <CurrencyProvider>
+              <MuiAppProvider>
+                <div className="flex flex-col min-h-screen">
+                  <AppNavbar />
+                  <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+                    {children}
+                  </main>
+                  <footer className="border-t border-[#8de5db]/10 py-6 text-center text-xs text-[#afcdc8]/60">
+                    <p>ApexFinance Enterprise &copy; 2026. Production Grade Financial Engine.</p>
+                  </footer>
+                </div>
+              </MuiAppProvider>
+            </CurrencyProvider>
           </AuthProvider>
         </ThemeProvider>
 

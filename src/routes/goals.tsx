@@ -10,6 +10,7 @@ import {
   type GoalContributionPayload,
   getErrorMessage 
 } from '#/lib/api'
+import { useCurrency } from '#/lib/currency-context'
 import { 
   Target, 
   Plus, 
@@ -45,6 +46,7 @@ function GoalsPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { currency, currencySymbol, formatCurrency } = useCurrency()
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
   const [isContributeModalOpen, setIsContributeModalOpen] = useState(false)
@@ -225,7 +227,7 @@ function GoalsPage() {
 
     const fundingAccount = accounts.find((a) => a.id === contributionData.accountId)
     if (fundingAccount && fundingAccount.balance < contributionData.amount) {
-      setErrorMsg(`Insufficient funds in ${fundingAccount.name}. Balance: $${fundingAccount.balance.toFixed(2)}`)
+      setErrorMsg(`Insufficient funds in ${fundingAccount.name}. Balance: ${formatCurrency(fundingAccount.balance, fundingAccount.currency)}`)
       return
     }
 
@@ -280,10 +282,10 @@ function GoalsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-[#0d1b20] border border-[#8de5db]/15 shadow-sm">
           <span className="text-[11px] font-medium text-[#afcdc8] uppercase tracking-wider">
-            Total Target Wealth
+            Total Target Wealth ({currency})
           </span>
           <div className="text-2xl font-bold text-white mt-1">
-            ${totalTarget.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrency(totalTarget)}
           </div>
           <span className="text-[10px] text-[#afcdc8]/70 mt-1 block">Cumulative target across {goals.length} goals</span>
         </div>
@@ -293,10 +295,10 @@ function GoalsPage() {
             Accumulated Savings
           </span>
           <div className="text-2xl font-bold text-[#60d7cf] mt-1">
-            ${totalSaved.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrency(totalSaved)}
           </div>
           <span className="text-[10px] text-[#afcdc8]/70 mt-1 block">
-            ${(totalTarget - totalSaved > 0 ? totalTarget - totalSaved : 0).toFixed(2)} remaining
+            {formatCurrency(Math.max(totalTarget - totalSaved, 0))} remaining
           </span>
         </div>
 
@@ -396,13 +398,13 @@ function GoalsPage() {
                     <div>
                       <span className="text-xs text-[#afcdc8]">Current Saved</span>
                       <div className="text-xl font-bold text-white">
-                        ${goal.currentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(goal.currentAmount)}
                       </div>
                     </div>
                     <div className="text-right">
                       <span className="text-xs text-[#afcdc8]">Target</span>
                       <div className="text-sm font-semibold text-[#afcdc8]">
-                        ${goal.targetAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(goal.targetAmount)}
                       </div>
                     </div>
                   </div>
@@ -425,7 +427,7 @@ function GoalsPage() {
                     <span>
                       {isCompleted
                         ? 'Target fully funded!'
-                        : `$${goal.remainingAmount.toFixed(2)} remaining`}
+                        : `${formatCurrency(goal.remainingAmount)} remaining`}
                     </span>
 
                     {goal.targetDate && (
@@ -506,7 +508,7 @@ function GoalsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#afcdc8] mb-1">Target Amount ($) *</label>
+                  <label className="block text-xs font-medium text-[#afcdc8] mb-1">Target Amount ({currencySymbol} {currency}) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -519,7 +521,7 @@ function GoalsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[#afcdc8] mb-1">Current Saved ($)</label>
+                  <label className="block text-xs font-medium text-[#afcdc8] mb-1">Current Saved ({currencySymbol} {currency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -628,14 +630,14 @@ function GoalsPage() {
                 >
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} (${acc.balance.toFixed(2)})
+                      {acc.name} ({formatCurrency(acc.balance, acc.currency)})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#afcdc8] mb-1">Deposit Amount ($) *</label>
+                <label className="block text-xs font-medium text-[#afcdc8] mb-1">Deposit Amount ({currencySymbol} {currency}) *</label>
                 <input
                   type="number"
                   step="0.01"

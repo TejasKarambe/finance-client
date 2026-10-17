@@ -3,6 +3,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '#/lib/auth-context'
 import { useTheme } from '#/lib/theme-context'
+import { CurrencySelector } from '#/components/currency/CurrencySelector'
 import { notificationsApi, type NotificationItem } from '#/lib/api'
 import { 
   LayoutDashboard, 
@@ -150,6 +151,9 @@ export function AppNavbar() {
 
         {/* User / Actions Toolbar */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Currency Switcher & Auto-Convert Engine */}
+          <CurrencySelector />
+
           {/* Dark / Light Mode Toggle */}
           <button
             onClick={toggleTheme}

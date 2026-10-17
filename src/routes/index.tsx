@@ -16,6 +16,7 @@ import {
   type MonthlyTrend,
   type AiInsightResponse
 } from '#/lib/api'
+import { useCurrency } from '#/lib/currency-context'
 import {
   TrendingUp,
   TrendingDown,
@@ -149,11 +150,16 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
     ? transactionsData
     : (transactionsData as { content?: Transaction[] })?.content || []
 
-  // Metrics derived from live backend or fallback to summary
-  const totalNetWorth = summary?.totalAccountBalance ?? accounts.reduce((acc, a) => acc + (Number(a.balance) || 0), 0)
-  const totalIncome = summary?.totalIncome ?? 0
-  const totalExpenses = summary?.totalExpenses ?? 0
-  const netCashFlow = summary?.netCashFlow ?? (totalIncome - totalExpenses)
+  const { currency, currencySymbol, formatCurrency, formatRawNumber, autoConvert } = useCurrency()
+
+  // Metrics derived from live backend or converted accounts
+  const totalNetWorth = accounts.length > 0
+    ? accounts.reduce((acc, a) => acc + formatRawNumber(Number(a.balance) || 0, a.currency), 0)
+    : formatRawNumber(summary?.totalAccountBalance ?? 0)
+
+  const totalIncome = formatRawNumber(summary?.totalIncome ?? 0)
+  const totalExpenses = formatRawNumber(summary?.totalExpenses ?? 0)
+  const netCashFlow = formatRawNumber(summary?.netCashFlow ?? (totalIncome - totalExpenses))
 
   const getAccountIcon = (type: string) => {
     switch (type) {
@@ -323,7 +329,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
         {/* Total Net Worth */}
         <div className="p-5 rounded-2xl bg-[#0f1a1e]/90 border border-[#8de5db]/15 shadow-md hover:border-[#4fb8b2]/30 transition-all">
           <div className="flex items-center justify-between text-[#afcdc8]">
-            <span className="text-xs font-medium uppercase tracking-wider">Total Net Worth</span>
+            <span className="text-xs font-medium uppercase tracking-wider">Total Net Worth ({currency})</span>
             <div className="p-2 rounded-lg bg-[#4fb8b2]/10 text-[#4fb8b2]">
               <Wallet className="w-4 h-4" />
             </div>
@@ -333,7 +339,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `$${Number(totalNetWorth).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                formatCurrency(totalNetWorth)
               )}
             </span>
           </div>
@@ -360,12 +366,12 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `+$${Number(totalIncome).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                `+${formatCurrency(totalIncome)}`
               )}
             </span>
           </div>
           <p className="text-[11px] text-emerald-400/80 mt-2 flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> Inflow & Salary Credits
+            <ArrowUpRight className="w-3.5 h-3.5" /> Inflow &amp; Salary Credits
           </p>
         </div>
 
@@ -384,12 +390,12 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `-$${Number(totalExpenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                `-${formatCurrency(totalExpenses)}`
               )}
             </span>
           </div>
           <p className="text-[11px] text-red-400/80 mt-2 flex items-center gap-1">
-            <ArrowDownRight className="w-3.5 h-3.5" /> Outflow & Tracked Bills
+            <ArrowDownRight className="w-3.5 h-3.5" /> Outflow &amp; Tracked Bills
           </p>
         </div>
 
@@ -410,7 +416,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `${netCashFlow >= 0 ? '+' : ''}$${Number(netCashFlow).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                `${netCashFlow >= 0 ? '+' : '-'}${formatCurrency(Math.abs(netCashFlow))}`
               )}
             </span>
           </div>
@@ -486,8 +492,8 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
                       {/* Tooltip on Hover */}
                       <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 px-3 py-1.5 rounded-lg bg-[#070e11] border border-[#8de5db]/30 text-white text-[11px] shadow-2xl whitespace-nowrap">
                         <span className="font-bold text-[#60d7cf]">{t.monthLabel}</span>
-                        <div className="text-emerald-400">Income: ${Number(t.income).toFixed(2)}</div>
-                        <div className="text-red-400">Expense: ${Number(t.expense).toFixed(2)}</div>
+                        <div className="text-emerald-400">Income: {formatCurrency(Number(t.income))}</div>
+                        <div className="text-red-400">Expense: {formatCurrency(Number(t.expense))}</div>
                       </div>
 
                       {/* Bars Container */}
@@ -534,7 +540,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               </p>
             </div>
             <span className="text-xs font-bold text-[#60d7cf]">
-              ${Number(totalExpenses).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(totalExpenses)}
             </span>
           </div>
 
@@ -563,7 +569,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
                       width: `${Math.max(cat.percentage || 0, 3)}%`,
                       backgroundColor: getCategoryColor(cat.category),
                     }}
-                    title={`${cat.category}: $${Number(cat.totalAmount).toFixed(2)} (${cat.percentage}%)`}
+                    title={`${cat.category}: ${formatCurrency(Number(cat.totalAmount))} (${cat.percentage}%)`}
                     className="h-full hover:opacity-85 transition-opacity"
                   />
                 ))}
@@ -587,7 +593,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
                       </div>
                       <div className="text-right">
                         <span className="text-xs font-bold text-white">
-                          ${Number(cat.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {formatCurrency(Number(cat.totalAmount))}
                         </span>
                         <span className="block text-[10px] text-[#afcdc8]">
                           {cat.percentage?.toFixed(1) || 0}%
@@ -646,9 +652,13 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-bold text-white">
-                      ${Number(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {formatCurrency(Number(account.balance), account.currency)}
                     </span>
-                    <span className="block text-[10px] text-[#afcdc8]">{account.currency || 'USD'}</span>
+                    <span className="block text-[10px] text-[#afcdc8]">
+                      {autoConvert && account.currency && account.currency.toUpperCase() !== currency.toUpperCase()
+                        ? `Orig: ${account.currency}`
+                        : account.currency || 'USD'}
+                    </span>
                   </div>
                 </div>
               ))
@@ -748,8 +758,8 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
                             : 'text-[#60d7cf]'
                         }`}
                       >
-                        {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}$
-                        {Number(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
+                        {formatCurrency(Number(tx.amount))}
                       </span>
                       {tx.paymentMethod && (
                         <span className="block text-[10px] text-[#afcdc8]/70 uppercase">

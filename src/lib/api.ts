@@ -95,6 +95,7 @@ export interface TransferPayload {
   sourceAccountId: number
   destinationAccountId: number
   amount: number
+  destinationAmount?: number
   description?: string
   transferDate: string
 }

@@ -14,6 +14,7 @@ import {
   type CsvImportResult,
   getErrorMessage
 } from '#/lib/api'
+import { useCurrency } from '#/lib/currency-context'
 import {
   ArrowLeftRight,
   ArrowUpRight,
@@ -69,6 +70,7 @@ function TransactionsPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { currency, currencySymbol, formatCurrency } = useCurrency()
 
   if (!isAuthenticated && typeof window !== 'undefined') {
     navigate({ to: '/login' })
@@ -421,7 +423,7 @@ function TransactionsPage() {
               <option value="">All Accounts</option>
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} (${Number(acc.balance).toFixed(2)})
+                  {acc.name} ({formatCurrency(Number(acc.balance), acc.currency)})
                 </option>
               ))}
             </select>
@@ -572,8 +574,8 @@ function TransactionsPage() {
                           : 'text-[#60d7cf]'
                       }`}
                     >
-                      {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}$
-                      {Number(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
+                      {formatCurrency(Number(tx.amount))}
                     </td>
 
                     {/* Actions */}
@@ -706,7 +708,7 @@ function TransactionsPage() {
                 >
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} (${Number(a.balance).toFixed(2)})
+                      {a.name} ({formatCurrency(Number(a.balance), a.currency)})
                     </option>
                   ))}
                 </select>
@@ -731,11 +733,11 @@ function TransactionsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-[#d7ece8] uppercase tracking-wider mb-1.5">
-                    Amount
+                    Amount ({currency})
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#afcdc8] text-sm">
-                      $
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#60d7cf] text-sm font-bold">
+                      {currencySymbol}
                     </span>
                     <input
                       name="amount"
@@ -900,11 +902,11 @@ function TransactionsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-[#d7ece8] uppercase tracking-wider mb-1.5">
-                    Amount
+                    Amount ({currency})
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#afcdc8] text-sm">
-                      $
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#60d7cf] text-sm font-bold">
+                      {currencySymbol}
                     </span>
                     <input
                       name="amount"
@@ -913,7 +915,7 @@ function TransactionsPage() {
                       min="0.01"
                       required
                       defaultValue={editingTx.amount}
-                      className="w-full pl-7 pr-3.5 py-2.5 bg-[#070e11] border border-[#8de5db]/20 rounded-xl text-white text-sm focus:outline-none focus:border-[#4fb8b2]"
+                      className="w-full pl-8 pr-3.5 py-2.5 bg-[#070e11] border border-[#8de5db]/20 rounded-xl text-white text-sm focus:outline-none focus:border-[#4fb8b2]"
                     />
                   </div>
                 </div>
