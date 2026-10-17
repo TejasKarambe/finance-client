@@ -4,8 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '#/lib/auth-context'
 import {
   reportsApi,
+  insightsApi,
   type MonthlyReport,
   type YearlyReport,
+  type AiInsightResponse,
   getErrorMessage
 } from '#/lib/api'
 import {
@@ -23,7 +25,12 @@ import {
   ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
-  BarChart3
+  BarChart3,
+  Sparkles,
+  Brain,
+  ShieldCheck,
+  FileCode,
+  Zap
 } from 'lucide-react'
 
 export const Route = createFileRoute('/reports')({
@@ -100,6 +107,13 @@ function ReportsPage() {
     enabled: isAuthenticated && reportType === 'YEARLY',
   })
 
+  // 3. Fetch AI Spending Insights & Financial Health Score
+  const { data: aiInsights } = useQuery<AiInsightResponse>({
+    queryKey: ['ai-insights'],
+    queryFn: insightsApi.getSpendingInsights,
+    enabled: isAuthenticated,
+  })
+
   // CSV Export Handler
   const handleExportCsv = async () => {
     try {
@@ -113,6 +127,23 @@ function ReportsPage() {
       setTimeout(() => setExportError(null), 5000)
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  // JSON Export Handler
+  const [isExportingJson, setIsExportingJson] = useState(false)
+  const handleExportJson = async () => {
+    try {
+      setIsExportingJson(true)
+      setExportError(null)
+      await reportsApi.exportJson()
+      setExportNotice('Complete financial JSON backup exported successfully!')
+      setTimeout(() => setExportNotice(null), 4000)
+    } catch (err) {
+      setExportError(getErrorMessage(err))
+      setTimeout(() => setExportError(null), 5000)
+    } finally {
+      setIsExportingJson(false)
     }
   }
 
@@ -273,17 +304,116 @@ function ReportsPage() {
             </div>
           )}
 
+          {/* Complete JSON Backup Button */}
+          <button
+            onClick={handleExportJson}
+            disabled={isExportingJson}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#070e11] border border-[#8de5db]/20 text-[#afcdc8] hover:text-white hover:bg-white/5 text-xs font-semibold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+            title="Download complete structured database backup in JSON format"
+          >
+            <FileCode className="w-4 h-4 text-[#4fb8b2]" />
+            <span>{isExportingJson ? 'Backing up...' : 'Backup JSON'}</span>
+          </button>
+
           {/* One-Click CSV Export Button */}
           <button
             onClick={handleExportCsv}
             disabled={isExporting}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white text-xs font-semibold shadow-lg shadow-[#4fb8b2]/20 hover:opacity-95 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white text-xs font-semibold shadow-lg shadow-[#4fb8b2]/20 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>{isExporting ? 'Exporting...' : 'Export to CSV'}</span>
           </button>
         </div>
       </div>
+
+      {/* AI Financial Health & Spending Insights Banner */}
+      {aiInsights && (
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0c1a20] via-[#0f242c] to-[#0a1519] border border-[#8de5db]/20 shadow-xl space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#328f97] to-[#4fb8b2] flex items-center justify-center text-white shadow-lg shadow-[#4fb8b2]/20">
+                <Brain className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#4fb8b2]">
+                    AI Financial Health Intelligence
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#4fb8b2]/20 text-[#60d7cf] border border-[#4fb8b2]/30">
+                    Grade {aiInsights.healthGrade}
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-white leading-tight mt-0.5">
+                  Financial Health Score: {aiInsights.financialHealthScore} / 100
+                </h2>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs">
+              <div className="p-2.5 rounded-xl bg-[#081216] border border-[#8de5db]/15">
+                <span className="text-[10px] text-[#afcdc8] block">Savings Rate</span>
+                <span className="text-sm font-bold text-emerald-400">
+                  {aiInsights.monthlySavingsRate > 0 ? `+${aiInsights.monthlySavingsRate.toFixed(1)}%` : `${aiInsights.monthlySavingsRate.toFixed(1)}%`}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#081216] border border-[#8de5db]/15">
+                <span className="text-[10px] text-[#afcdc8] block">Fixed Recurring</span>
+                <span className="text-sm font-bold text-[#60d7cf]">
+                  {aiInsights.recurringExpenseRatio.toFixed(1)}%
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#081216] border border-[#8de5db]/15">
+                <span className="text-[10px] text-[#afcdc8] block">Top Outlay</span>
+                <span className="text-sm font-bold text-white">
+                  {aiInsights.topSpendingCategory}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-[#afcdc8] leading-relaxed bg-[#081216]/60 p-3 rounded-xl border border-[#8de5db]/10">
+            {aiInsights.healthSummary}
+          </p>
+
+          {/* Actionable Insights Badges */}
+          {aiInsights.insights && aiInsights.insights.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+              {aiInsights.insights.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-xl bg-[#081216] border border-[#8de5db]/15 flex flex-col justify-between space-y-2 hover:border-[#8de5db]/30 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#4fb8b2] shrink-0" />
+                      <h4 className="text-xs font-semibold text-white leading-tight">{item.title}</h4>
+                    </div>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                        item.impactLevel === 'HIGH'
+                          ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                          : 'bg-[#4fb8b2]/20 text-[#60d7cf] border border-[#4fb8b2]/30'
+                      }`}
+                    >
+                      {item.impactLevel}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#afcdc8] leading-relaxed">{item.description}</p>
+                  <div className="pt-2 border-t border-[#8de5db]/10 text-[10px] text-[#60d7cf] flex items-center justify-between">
+                    <span>{item.recommendedAction}</span>
+                    {item.potentialMonthlySavings > 0 && (
+                      <span className="font-bold text-emerald-400 shrink-0 ml-1">
+                        +${item.potentialMonthlySavings}/mo
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

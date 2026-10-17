@@ -4,12 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '#/lib/auth-context'
 import {
   transactionsApi,
+  transactionsExtendedApi,
   accountsApi,
   type Transaction,
   type TransactionType,
   type CreateTransactionPayload,
   type Account,
   type PaginatedResponse,
+  type CsvImportResult,
   getErrorMessage
 } from '#/lib/api'
 import {
@@ -27,7 +29,10 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Building2
+  Building2,
+  UploadCloud,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react'
 
 export const Route = createFileRoute('/transactions')({
@@ -86,6 +91,62 @@ function TransactionsPage() {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  // CSV Import / Export States
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importResult, setImportResult] = useState<CsvImportResult | null>(null)
+
+  const downloadSampleCsv = () => {
+    const csvContent =
+      "Date,Type,Category,Amount,Account,Payment Method,Description\n" +
+      "2026-10-15,EXPENSE,Groceries,85.50,Checking,DEBIT_CARD,Whole Foods Market\n" +
+      "2026-10-16,INCOME,Salary,3500.00,Savings,NET_BANKING,Monthly Software Engineer Salary\n" +
+      "2026-10-17,EXPENSE,Dining & Restaurants,42.00,Checking,CREDIT_CARD,Dinner with team\n"
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = "apex_transactions_template.csv"
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handleImportCsv = async () => {
+    if (!importFile) return
+    setIsImporting(true)
+    setImportResult(null)
+    try {
+      const res = await transactionsExtendedApi.importCsv(importFile)
+      setImportResult(res)
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] })
+      setFeedback({ type: 'success', message: res.message })
+    } catch (err) {
+      setImportResult({
+        totalRows: 0,
+        importedCount: 0,
+        skippedCount: 0,
+        errors: [getErrorMessage(err)],
+        message: 'Import failed',
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleExportFilteredCsv = () => {
+    transactionsExtendedApi.exportCsv({
+      search: search || undefined,
+      type: selectedType || undefined,
+      category: selectedCategory || undefined,
+      accountId: selectedAccount !== '' ? selectedAccount : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    })
+  }
 
   // Fetch Accounts for dropdown
   const { data: accounts = [] } = useQuery<Account[]>({
@@ -223,7 +284,29 @@ function TransactionsPage() {
           </p>
         </div>
 
-        <div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={handleExportFilteredCsv}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#0f1a1e] border border-[#8de5db]/20 text-[#afcdc8] hover:text-white hover:bg-white/5 text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            title="Export filtered transactions as CSV"
+          >
+            <Download className="w-4 h-4 text-[#4fb8b2]" />
+            <span>Export CSV</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setImportFile(null)
+              setImportResult(null)
+              setIsImportOpen(true)
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#0f1a1e] border border-[#8de5db]/20 text-[#afcdc8] hover:text-white hover:bg-white/5 text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            title="Import transactions from spreadsheet CSV"
+          >
+            <UploadCloud className="w-4 h-4 text-[#4fb8b2]" />
+            <span>Import CSV</span>
+          </button>
+
           <button
             onClick={() => setIsAddOpen(true)}
             disabled={accounts.length === 0}
@@ -946,6 +1029,116 @@ function TransactionsPage() {
                 className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {deleteMutation.isPending ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* Modal 4: CSV Bulk Import Dialog                                        */}
+      {/* ---------------------------------------------------------------------- */}
+      {isImportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg p-6 rounded-2xl bg-[#0c181d] border border-[#8de5db]/30 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#8de5db]/15">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#4fb8b2]/20 border border-[#4fb8b2]/40 flex items-center justify-center text-[#60d7cf]">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Import Spreadsheet CSV</h3>
+                  <p className="text-xs text-[#afcdc8]">Bulk upload transactions from bank or credit card exports</p>
+                </div>
+              </div>
+              <button onClick={() => setIsImportOpen(false)} className="p-1 text-[#afcdc8] hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Template Download Prompt */}
+            <div className="p-3.5 rounded-xl bg-[#132228] border border-[#8de5db]/15 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-[#afcdc8]">
+                <FileSpreadsheet className="w-4 h-4 text-[#4fb8b2]" />
+                <span>Need the standard CSV format template?</span>
+              </div>
+              <button
+                type="button"
+                onClick={downloadSampleCsv}
+                className="inline-flex items-center gap-1 font-semibold text-[#60d7cf] hover:underline"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Sample</span>
+              </button>
+            </div>
+
+            {/* File Drop / Select Area */}
+            <div className="border-2 border-dashed border-[#8de5db]/25 hover:border-[#4fb8b2] rounded-2xl p-6 text-center transition-all bg-[#081216]">
+              <input
+                type="file"
+                id="csv-file-input"
+                accept=".csv,text/csv"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setImportFile(e.target.files[0])
+                    setImportResult(null)
+                  }
+                }}
+                className="hidden"
+              />
+              <label htmlFor="csv-file-input" className="cursor-pointer flex flex-col items-center gap-2">
+                <UploadCloud className="w-10 h-10 text-[#4fb8b2]" />
+                <span className="text-xs font-semibold text-white">
+                  {importFile ? importFile.name : 'Click or drag a .csv file here'}
+                </span>
+                <span className="text-[10px] text-[#afcdc8]/70">
+                  Supported columns: Date, Amount, Type, Category, Account, Payment Method, Description
+                </span>
+              </label>
+            </div>
+
+            {/* Import Status / Errors */}
+            {importResult && (
+              <div className={`p-4 rounded-xl text-xs space-y-2 ${
+                importResult.errors && importResult.errors.length > 0 && importResult.importedCount === 0
+                  ? 'bg-red-950/40 border border-red-500/30 text-red-300'
+                  : 'bg-emerald-950/40 border border-emerald-500/30 text-emerald-300'
+              }`}>
+                <div className="flex items-center gap-2 font-semibold">
+                  {importResult.importedCount > 0 ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  )}
+                  <span>{importResult.message}</span>
+                </div>
+                {importResult.errors && importResult.errors.length > 0 && (
+                  <div className="mt-2 text-[11px] text-amber-300 max-h-32 overflow-y-auto space-y-1">
+                    <span className="font-semibold block">Issues encountered:</span>
+                    {importResult.errors.map((err: string, i: number) => (
+                      <p key={i}>• {err}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#8de5db]/15">
+              <button
+                type="button"
+                onClick={() => setIsImportOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#afcdc8] hover:text-white"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleImportCsv}
+                disabled={!importFile || isImporting}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#328f97] to-[#4fb8b2] text-white text-xs font-semibold shadow-md shadow-[#4fb8b2]/20 hover:opacity-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isImporting ? 'Processing CSV...' : 'Upload & Import'}
               </button>
             </div>
           </div>

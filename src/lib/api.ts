@@ -372,4 +372,235 @@ export const reportsApi = {
     link.click()
     link.remove()
   },
+  exportJson: async () => {
+    const res = await api.get('/reports/export/json')
+    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `apex_finance_backup_${new Date().toISOString().slice(0, 10)}.json`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  },
 }
+
+// ---------------------------------------------------------------------------
+// Advanced Features Types & APIs
+// ---------------------------------------------------------------------------
+
+export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
+
+export interface RecurringTransaction {
+  id: number
+  accountId: number
+  accountName: string
+  title: string
+  amount: number
+  type: TransactionType
+  category: string
+  frequency: RecurrenceFrequency
+  startDate: string
+  nextDueDate: string
+  endDate?: string
+  paymentMethod?: string
+  description?: string
+  active: boolean
+  autoProcess: boolean
+  lastProcessedDate?: string
+  daysUntilDue: number
+  isDue: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateRecurringTransactionPayload {
+  accountId: number
+  title: string
+  amount: number
+  type: TransactionType
+  category: string
+  frequency: RecurrenceFrequency
+  startDate: string
+  nextDueDate?: string
+  endDate?: string
+  paymentMethod?: string
+  description?: string
+  active?: boolean
+  autoProcess?: boolean
+}
+
+export interface SavingsGoal {
+  id: number
+  name: string
+  targetAmount: number
+  currentAmount: number
+  remainingAmount: number
+  progressPercentage: number
+  targetDate?: string
+  daysRemaining?: number
+  category?: string
+  color?: string
+  icon?: string
+  completed: boolean
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateSavingsGoalPayload {
+  name: string
+  targetAmount: number
+  currentAmount?: number
+  targetDate?: string
+  category?: string
+  color?: string
+  icon?: string
+  notes?: string
+}
+
+export interface GoalContributionPayload {
+  accountId: number
+  amount: number
+  notes?: string
+}
+
+export interface CsvImportResult {
+  totalRows: number
+  importedCount: number
+  skippedCount: number
+  errors: string[]
+  message: string
+}
+
+export interface NotificationItem {
+  id: string
+  title: string
+  message: string
+  type: 'WARNING' | 'ALERT' | 'INFO' | 'SUCCESS'
+  category: 'BUDGET' | 'RECURRING' | 'ACCOUNT' | 'GOAL' | 'SYSTEM'
+  timestamp: string
+  actionUrl?: string
+  read: boolean
+}
+
+export interface SpendingInsightItem {
+  id: string
+  type: 'SAVINGS_OPPORTUNITY' | 'ANOMALY_ALERT' | 'SUBSCRIPTION_LOAD' | 'POSITIVE_TREND'
+  title: string
+  description: string
+  potentialMonthlySavings: number
+  impactLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+  recommendedAction: string
+}
+
+export interface AiInsightResponse {
+  financialHealthScore: number
+  healthGrade: string
+  healthSummary: string
+  monthlySavingsRate: number
+  topSpendingCategory: string
+  totalMonthlyBurn: number
+  recurringExpensesTotal: number
+  recurringExpenseRatio: number
+  insights: SpendingInsightItem[]
+}
+
+export const recurringApi = {
+  getAll: async () => {
+    const res = await api.get<RecurringTransaction[]>('/recurring-transactions')
+    return res.data
+  },
+  getById: async (id: number) => {
+    const res = await api.get<RecurringTransaction>(`/recurring-transactions/${id}`)
+    return res.data
+  },
+  create: async (payload: CreateRecurringTransactionPayload) => {
+    const res = await api.post<RecurringTransaction>('/recurring-transactions', payload)
+    return res.data
+  },
+  update: async (id: number, payload: Partial<CreateRecurringTransactionPayload>) => {
+    const res = await api.put<RecurringTransaction>(`/recurring-transactions/${id}`, payload)
+    return res.data
+  },
+  delete: async (id: number) => {
+    await api.delete(`/recurring-transactions/${id}`)
+  },
+  process: async (id: number) => {
+    const res = await api.post<Transaction>(`/recurring-transactions/${id}/process`)
+    return res.data
+  },
+  processAllDue: async () => {
+    const res = await api.post<Transaction[]>('/recurring-transactions/process-due')
+    return res.data
+  },
+}
+
+export const savingsGoalsApi = {
+  getAll: async () => {
+    const res = await api.get<SavingsGoal[]>('/savings-goals')
+    return res.data
+  },
+  getById: async (id: number) => {
+    const res = await api.get<SavingsGoal>(`/savings-goals/${id}`)
+    return res.data
+  },
+  create: async (payload: CreateSavingsGoalPayload) => {
+    const res = await api.post<SavingsGoal>('/savings-goals', payload)
+    return res.data
+  },
+  update: async (id: number, payload: Partial<CreateSavingsGoalPayload>) => {
+    const res = await api.put<SavingsGoal>(`/savings-goals/${id}`, payload)
+    return res.data
+  },
+  delete: async (id: number) => {
+    await api.delete(`/savings-goals/${id}`)
+  },
+  contribute: async (id: number, payload: GoalContributionPayload) => {
+    const res = await api.post<SavingsGoal>(`/savings-goals/${id}/contribute`, payload)
+    return res.data
+  },
+}
+
+export const notificationsApi = {
+  getAll: async () => {
+    const res = await api.get<NotificationItem[]>('/notifications')
+    return res.data
+  },
+}
+
+export const insightsApi = {
+  getSpendingInsights: async () => {
+    const res = await api.get<AiInsightResponse>('/insights/spending')
+    return res.data
+  },
+}
+
+// Extend transactionsApi with CSV Import and Export
+export const transactionsExtendedApi = {
+  ...transactionsApi,
+  importCsv: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await api.post<CsvImportResult>('/transactions/import-csv', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return res.data
+  },
+  exportCsv: async (filters: TransactionFilters = {}) => {
+    const response = await api.get('/transactions/export/csv', {
+      params: filters,
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `transactions_export_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  },
+}
+

@@ -6,11 +6,15 @@ import {
   accountsApi,
   transactionsApi,
   dashboardApi,
+  insightsApi,
+  recurringApi,
+  savingsGoalsApi,
   type Transaction,
   type Account,
   type DashboardSummary,
   type CategoryBreakdown,
-  type MonthlyTrend
+  type MonthlyTrend,
+  type AiInsightResponse
 } from '#/lib/api'
 import {
   TrendingUp,
@@ -30,7 +34,11 @@ import {
   DollarSign,
   Calendar,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Brain,
+  Sparkles,
+  Repeat,
+  Target
 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
@@ -118,6 +126,23 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
   const { data: transactionsData, isLoading: isLoadingTx } = useQuery({
     queryKey: ['recent-transactions'],
     queryFn: () => transactionsApi.getAll({ size: 5, sortDir: 'desc' }),
+  })
+
+  // 6. Fetch AI Spending Insights & Financial Health Score
+  const { data: aiInsights } = useQuery<AiInsightResponse>({
+    queryKey: ['ai-insights'],
+    queryFn: insightsApi.getSpendingInsights,
+  })
+
+  // 7. Fetch Recurring Schedules & Goals
+  const { data: recurringItems = [] } = useQuery({
+    queryKey: ['recurring-transactions'],
+    queryFn: recurringApi.getAll,
+  })
+
+  const { data: goals = [] } = useQuery({
+    queryKey: ['savings-goals'],
+    queryFn: savingsGoalsApi.getAll,
   })
 
   const recentTransactions: Transaction[] = Array.isArray(transactionsData)
@@ -215,6 +240,83 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
           </Link>
         </div>
       </div>
+
+      {/* AI Financial Health & Strategic Milestones Banner */}
+      {aiInsights && (
+        <div className="p-6 rounded-2xl bg-gradient-to-r from-[#0c1a20] via-[#0f242c] to-[#0a1519] border border-[#8de5db]/25 shadow-xl space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#328f97] to-[#4fb8b2] flex items-center justify-center text-white shadow-lg shadow-[#4fb8b2]/20">
+                <Brain className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#4fb8b2]">
+                    AI Financial Health Intelligence
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#4fb8b2]/20 text-[#60d7cf] border border-[#4fb8b2]/30">
+                    Grade {aiInsights.healthGrade}
+                  </span>
+                </div>
+                <h2 className="text-base sm:text-lg font-bold text-white mt-0.5">
+                  Financial Health Score: {aiInsights.financialHealthScore} / 100
+                </h2>
+              </div>
+            </div>
+
+            {/* Quick Links to New Features */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Link
+                to="/recurring"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#081216] border border-[#8de5db]/15 hover:border-[#8de5db]/30 text-xs font-semibold text-[#afcdc8] hover:text-white transition-all"
+              >
+                <Repeat className="w-3.5 h-3.5 text-[#4fb8b2]" />
+                <span>{recurringItems.filter((i) => i.active).length} Subscriptions</span>
+              </Link>
+
+              <Link
+                to="/goals"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#081216] border border-[#8de5db]/15 hover:border-[#8de5db]/30 text-xs font-semibold text-[#afcdc8] hover:text-white transition-all"
+              >
+                <Target className="w-3.5 h-3.5 text-[#4fb8b2]" />
+                <span>{goals.length} Savings Goals</span>
+              </Link>
+
+              <Link
+                to="/reports"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#328f97]/20 border border-[#4fb8b2]/30 text-xs font-semibold text-[#60d7cf] hover:bg-[#328f97]/30 transition-all"
+              >
+                <span>Full AI Report</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-xs text-[#afcdc8] leading-relaxed bg-[#081216]/60 p-3 rounded-xl border border-[#8de5db]/10">
+            {aiInsights.healthSummary}
+          </p>
+
+          {/* Quick Highlight Recommendations */}
+          {aiInsights.insights && aiInsights.insights.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              {aiInsights.insights.slice(0, 2).map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3 rounded-xl bg-[#081216] border border-[#8de5db]/15 flex items-start gap-2.5 hover:border-[#8de5db]/30 transition-all"
+                >
+                  <Sparkles className="w-4 h-4 text-[#4fb8b2] shrink-0 mt-0.5" />
+                  <div className="text-left min-w-0">
+                    <h4 className="text-xs font-bold text-white truncate">{item.title}</h4>
+                    <p className="text-[11px] text-[#afcdc8] leading-relaxed mt-0.5 line-clamp-2">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
