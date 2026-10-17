@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '#/lib/auth-context'
@@ -150,16 +150,22 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
     ? transactionsData
     : (transactionsData as { content?: Transaction[] })?.content || []
 
-  const { currency, currencySymbol, formatCurrency, formatRawNumber, autoConvert } = useCurrency()
+  const { currency, currencySymbol, formatCurrency, formatRawNumber, baseCurrency, autoConvert } = useCurrency()
 
-  // Metrics derived from live backend or converted accounts
+  // Account currency lookup map for accurate per-transaction conversion
+  const accountCurrencyMap = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a.currency || baseCurrency])),
+    [accounts, baseCurrency]
+  )
+
+  // Metrics derived from live backend or converted accounts (expressed in active display currency)
   const totalNetWorth = accounts.length > 0
-    ? accounts.reduce((acc, a) => acc + formatRawNumber(Number(a.balance) || 0, a.currency), 0)
-    : formatRawNumber(summary?.totalAccountBalance ?? 0)
+    ? accounts.reduce((acc, a) => acc + formatRawNumber(Number(a.balance) || 0, a.currency || baseCurrency), 0)
+    : formatRawNumber(summary?.totalAccountBalance ?? 0, baseCurrency)
 
-  const totalIncome = formatRawNumber(summary?.totalIncome ?? 0)
-  const totalExpenses = formatRawNumber(summary?.totalExpenses ?? 0)
-  const netCashFlow = formatRawNumber(summary?.netCashFlow ?? (totalIncome - totalExpenses))
+  const totalIncome = formatRawNumber(summary?.totalIncome ?? 0, baseCurrency)
+  const totalExpenses = formatRawNumber(summary?.totalExpenses ?? 0, baseCurrency)
+  const netCashFlow = totalIncome - totalExpenses
 
   const getAccountIcon = (type: string) => {
     switch (type) {
@@ -339,7 +345,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                formatCurrency(totalNetWorth)
+                formatCurrency(totalNetWorth, currency)
               )}
             </span>
           </div>
@@ -366,7 +372,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `+${formatCurrency(totalIncome)}`
+                `+${formatCurrency(totalIncome, currency)}`
               )}
             </span>
           </div>
@@ -390,7 +396,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `-${formatCurrency(totalExpenses)}`
+                `-${formatCurrency(totalExpenses, currency)}`
               )}
             </span>
           </div>
@@ -416,7 +422,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               {isLoadingSummary ? (
                 <span className="animate-pulse">Loading...</span>
               ) : (
-                `${netCashFlow >= 0 ? '+' : '-'}${formatCurrency(Math.abs(netCashFlow))}`
+                `${netCashFlow >= 0 ? '+' : '-'}${formatCurrency(Math.abs(netCashFlow), currency)}`
               )}
             </span>
           </div>
@@ -540,7 +546,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
               </p>
             </div>
             <span className="text-xs font-bold text-[#60d7cf]">
-              {formatCurrency(totalExpenses)}
+              {formatCurrency(totalExpenses, currency)}
             </span>
           </div>
 
@@ -759,7 +765,7 @@ function AuthenticatedDashboard({ user }: { user: { name: string; email: string 
                         }`}
                       >
                         {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
-                        {formatCurrency(Number(tx.amount))}
+                        {formatCurrency(Number(tx.amount), accountCurrencyMap.get(tx.accountId) || baseCurrency)}
                       </span>
                       {tx.paymentMethod && (
                         <span className="block text-[10px] text-[#afcdc8]/70 uppercase">

@@ -88,11 +88,15 @@ interface CurrencyContextType {
   currency: string
   currencyInfo: CurrencyInfo
   currencySymbol: string
+  baseCurrency: string
+  baseCurrencyInfo: CurrencyInfo
+  baseCurrencySymbol: string
   autoConvert: boolean
   rates: Record<string, number>
   isRatesLive: boolean
   lastRateUpdate: string | null
   setCurrency: (code: string) => void
+  setBaseCurrency: (code: string) => void
   setAutoConvert: (enabled: boolean) => void
   convert: (amount: number, fromCurrency?: string, toCurrency?: string) => number
   formatCurrency: (
@@ -111,13 +115,23 @@ interface CurrencyContextType {
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined)
 
 const STORAGE_KEY_CURRENCY = 'apex_preferred_currency'
+const STORAGE_KEY_BASE_CURRENCY = 'apex_base_currency'
 const STORAGE_KEY_AUTO_CONVERT = 'apex_auto_convert'
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  // Default to INR as requested by user ("now only currency appear in $ not in ₹ fix it")
+  // Default display currency to INR
   const [currency, setCurrencyState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY_CURRENCY)
+      if (saved && SUPPORTED_CURRENCIES[saved]) return saved
+    }
+    return 'INR'
+  })
+
+  // Base ledger currency in which financial transactions & records are entered (defaults to INR)
+  const [baseCurrency, setBaseCurrencyState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY_BASE_CURRENCY)
       if (saved && SUPPORTED_CURRENCIES[saved]) return saved
     }
     return 'INR'
@@ -188,6 +202,16 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const setBaseCurrency = (code: string) => {
+    const normalized = code.toUpperCase()
+    if (SUPPORTED_CURRENCIES[normalized]) {
+      setBaseCurrencyState(normalized)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY_BASE_CURRENCY, normalized)
+      }
+    }
+  }
+
   const setAutoConvert = (enabled: boolean) => {
     setAutoConvertState(enabled)
     if (typeof window !== 'undefined') {
@@ -196,12 +220,15 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   }
 
   const currentInfo = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES.INR
+  const baseCurrencyInfo = SUPPORTED_CURRENCIES[baseCurrency] || SUPPORTED_CURRENCIES.INR
 
   /**
    * Convert an amount between currencies using active exchange rates.
+   * If fromCurrency is omitted, defaults to baseCurrency.
+   * If toCurrency is omitted, defaults to active display currency.
    */
   const convert = (amount: number, fromCurrency?: string, toCurrency?: string): number => {
-    const from = (fromCurrency || 'USD').toUpperCase()
+    const from = (fromCurrency || baseCurrency).toUpperCase()
     const to = (toCurrency || currency).toUpperCase()
 
     if (from === to) return amount
@@ -216,17 +243,22 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   }
 
   /**
-   * Returns converted numeric value if autoConvert is on, or original amount.
+   * Returns converted numeric value into user's active display currency if autoConvert is on.
+   * If fromCurrency is omitted, defaults to baseCurrency.
+   * If fromCurrency matches currency, returns as-is.
    */
   const formatRawNumber = (amount: number, fromCurrency?: string): number => {
-    if (!autoConvert || !fromCurrency || fromCurrency.toUpperCase() === currency.toUpperCase()) {
+    const from = (fromCurrency || baseCurrency).toUpperCase()
+    if (!autoConvert || from === currency.toUpperCase()) {
       return amount
     }
-    return convert(amount, fromCurrency, currency)
+    return convert(amount, from, currency)
   }
 
   /**
    * Formats any amount into user's active currency with proper locale & symbol.
+   * If fromCurrency is omitted, defaults to baseCurrency.
+   * If fromCurrency === currency, it assumes the amount is already converted to the active currency.
    */
   const formatCurrency = (
     amount: number,
@@ -241,13 +273,15 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     let targetNum = num
     let targetInfo = currentInfo
 
+    const from = (fromCurrency || baseCurrency).toUpperCase()
+
     if (autoConvert) {
-      if (fromCurrency && fromCurrency.toUpperCase() !== currency.toUpperCase()) {
-        targetNum = convert(num, fromCurrency, currency)
+      if (from !== currency.toUpperCase()) {
+        targetNum = convert(num, from, currency)
       }
-    } else if (fromCurrency && SUPPORTED_CURRENCIES[fromCurrency.toUpperCase()]) {
+    } else if (SUPPORTED_CURRENCIES[from]) {
       // If auto-convert is turned off, retain original currency formatting if provided
-      targetInfo = SUPPORTED_CURRENCIES[fromCurrency.toUpperCase()]
+      targetInfo = SUPPORTED_CURRENCIES[from]
     }
 
     const maxFraction = options?.maximumFractionDigits !== undefined ? options.maximumFractionDigits : 2
@@ -283,18 +317,22 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       currency,
       currencyInfo: currentInfo,
       currencySymbol: currentInfo.symbol,
+      baseCurrency,
+      baseCurrencyInfo,
+      baseCurrencySymbol: baseCurrencyInfo.symbol,
       autoConvert,
       rates,
       isRatesLive,
       lastRateUpdate,
       setCurrency,
+      setBaseCurrency,
       setAutoConvert,
       convert,
       formatCurrency,
       formatRawNumber,
       refreshRates,
     }),
-    [currency, currentInfo, autoConvert, rates, isRatesLive, lastRateUpdate]
+    [currency, currentInfo, baseCurrency, baseCurrencyInfo, autoConvert, rates, isRatesLive, lastRateUpdate]
   )
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>

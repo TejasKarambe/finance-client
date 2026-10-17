@@ -15,11 +15,14 @@ export function CurrencySelector() {
     currency,
     currencyInfo,
     currencySymbol,
+    baseCurrency,
+    baseCurrencyInfo,
     autoConvert,
     rates,
     isRatesLive,
     lastRateUpdate,
     setCurrency,
+    setBaseCurrency,
     setAutoConvert,
     convert,
     refreshRates,
@@ -165,12 +168,41 @@ export function CurrencySelector() {
             </div>
           </div>
 
+          {/* Base Ledger Currency Configuration */}
+          <div className="mt-3 p-2.5 rounded-xl bg-[#081216] border border-[#8de5db]/15 flex items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-white">Base Ledger Currency</span>
+                <span className="text-[10px] text-[#4fb8b2] font-mono font-bold">({baseCurrencyInfo.symbol} {baseCurrency})</span>
+              </div>
+              <p className="text-[10px] text-[#afcdc8]/80 leading-tight mt-0.5">
+                Original denomination of your records &amp; accounts
+              </p>
+            </div>
+            <select
+              value={baseCurrency}
+              onChange={(e) => setBaseCurrency(e.target.value)}
+              className="px-2.5 py-1 bg-[#0c181d] border border-[#8de5db]/30 rounded-lg text-xs font-bold text-[#60d7cf] focus:outline-none focus:border-[#4fb8b2] cursor-pointer"
+            >
+              {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.flag} {c.code} ({c.symbol})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Real-time Exchange Rate Info Ticker */}
           <div className="mt-3 py-2 px-3 rounded-xl bg-[#091418] border border-[#8de5db]/10 flex items-center justify-between text-[11px] text-[#afcdc8]">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>
                 1 USD = <strong className="text-white">₹{(rates['INR'] || 86.85).toFixed(2)} INR</strong>
+                {currency !== 'USD' && currency !== 'INR' && (
+                  <span className="text-[#afcdc8]/80 ml-2">
+                    | 1 USD = {currencyInfo.symbol}{(rates[currency] || 1).toFixed(2)} {currency}
+                  </span>
+                )}
               </span>
             </div>
             {lastRateUpdate && (

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '#/lib/auth-context'
@@ -70,7 +70,7 @@ function TransactionsPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { currency, currencySymbol, formatCurrency } = useCurrency()
+  const { currency, currencySymbol, formatCurrency, baseCurrency } = useCurrency()
 
   if (!isAuthenticated && typeof window !== 'undefined') {
     navigate({ to: '/login' })
@@ -155,6 +155,12 @@ function TransactionsPage() {
     queryKey: ['accounts'],
     queryFn: accountsApi.getAll,
   })
+
+  // Map accountId -> account currency for multi-currency transaction rendering
+  const accountCurrencyMap = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a.currency || baseCurrency])),
+    [accounts, baseCurrency]
+  )
 
   // Fetch Transactions with filter params
   const { data: transactionsData, isLoading, error: queryError } = useQuery({
@@ -575,7 +581,7 @@ function TransactionsPage() {
                       }`}
                     >
                       {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
-                      {formatCurrency(Number(tx.amount))}
+                      {formatCurrency(Number(tx.amount), accountCurrencyMap.get(tx.accountId) || baseCurrency)}
                     </td>
 
                     {/* Actions */}
