@@ -202,6 +202,40 @@ export interface MonthlyTrend {
   netFlow: number
 }
 
+export interface MonthlyReportCategory {
+  category: string
+  totalAmount: number
+  percentage?: number
+}
+
+export interface MonthlyReport {
+  year: number
+  month: number
+  totalIncome: number
+  totalExpense: number
+  netAmount: number
+  savingsRate?: number
+  categories?: MonthlyReportCategory[]
+}
+
+export interface MonthlyFlowItem {
+  month: number
+  monthName: string
+  income: number
+  expense: number
+  netFlow: number
+}
+
+export interface YearlyReport {
+  year: number
+  totalIncome: number
+  totalExpense: number
+  netAmount: number
+  savingsRate?: number
+  monthlyBreakdown?: MonthlyFlowItem[]
+  topCategories?: MonthlyReportCategory[]
+}
+
 // ---------------------------------------------------------------------------
 // API Methods
 // ---------------------------------------------------------------------------
@@ -316,19 +350,23 @@ export const budgetsApi = {
 
 export const reportsApi = {
   getMonthlyReport: async (year: number, month: number) => {
-    const res = await api.get('/reports/monthly', { params: { year, month } })
+    const res = await api.get<MonthlyReport>('/reports/monthly', { params: { year, month } })
+    return res.data
+  },
+  getYearlyReport: async (year: number) => {
+    const res = await api.get<YearlyReport>('/reports/yearly', { params: { year } })
     return res.data
   },
   getCategoryExpenses: async (year: number, month: number) => {
-    const res = await api.get('/reports/monthly/category', { params: { year, month } })
+    const res = await api.get<MonthlyReportCategory[]>('/reports/monthly/category', { params: { year, month } })
     return res.data
   },
   exportCsv: async () => {
     const response = await api.get('/reports/export/csv', { responseType: 'blob' })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `financial_report_${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute('download', `financial_ledger_${new Date().toISOString().slice(0, 10)}.csv`)
     document.body.appendChild(link)
     link.click()
     link.remove()
