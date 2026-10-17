@@ -149,6 +149,17 @@ export interface PaginatedResponse<T> {
   size?: number
 }
 
+export interface Budget {
+  id: number
+  category: string
+  limitAmount: number
+  month: number
+  year: number
+  userId: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface BudgetStatus {
   budgetId?: number
   category: string
@@ -288,9 +299,18 @@ export const budgetsApi = {
     })
     return res.data
   },
-  createOrUpdate: async (payload: CreateBudgetPayload) => {
-    const res = await api.post('/budgets', payload)
+  getAll: async (month?: number, year?: number) => {
+    const res = await api.get<Budget[]>('/budgets', {
+      params: { month, year },
+    })
     return res.data
+  },
+  createOrUpdate: async (payload: CreateBudgetPayload) => {
+    const res = await api.post<Budget>('/budgets', payload)
+    return res.data
+  },
+  delete: async (id: number) => {
+    await api.delete(`/budgets/${id}`)
   },
 }
 
