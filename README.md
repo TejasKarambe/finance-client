@@ -1,280 +1,216 @@
-Welcome to your new TanStack Start app!
+# 💎 ApexFinance Client
 
-# Getting Started
+An ultra-modern, enterprise-grade Personal Finance Management web application built with **TanStack Start (React 19 + TypeScript + Vite + Nitro Engine)**, **TanStack Router**, **TanStack Query (React Query v5)**, and **Tailwind CSS v4**.
 
-To run this application:
+ApexFinance delivers a responsive, sleek, glassmorphic financial command center designed for precision money management—featuring real-time cash flow dashboards, multi-account ledger tracking, atomic inter-account transfers, category budgeting with automated threshold alerts, recurring transaction scheduling, savings goal milestones, AI spending insights, and global multi-currency conversion.
+
+---
+
+## 🛠️ Tech Stack & Architecture
+
+* **Core Framework**: [TanStack Start](https://tanstack.com/start) (Full-stack SSR React 19 framework powered by Vite & Nitro)
+* **Type-Safe Routing**: [TanStack Router](https://tanstack.com/router) with automatic file-based route generation (`src/routes/*`)
+* **State Management & Caching**: [TanStack Query v5](https://tanstack.com/query) with intelligent stale-time caching and background revalidation
+* **Styling & Design System**: [Tailwind CSS v4](https://tailwindcss.com/) with custom Glassmorphism dark mode palette (`#070e11`, `#0a1418`, `#4fb8b2`, `#8de5db`)
+* **UI Components & Icons**: [Material UI (@mui/material)](https://mui.com/), `@mui/x-date-pickers`, and [Lucide React](https://lucide.dev/)
+* **HTTP Client**: [Axios](https://axios-http.com/) configured with JWT Bearer token request interceptors and automatic 401 redirect handling
+* **Code Quality & Tooling**: [Biome](https://biomejs.dev/) for sub-millisecond linting and code formatting
+* **Deployment Target**: [Vercel](https://vercel.com/) (Serverless Edge Functions) / Node.js runtime
+
+---
+
+## ✨ Features & Application Modules
+
+### 1. 📊 Executive Dashboard (`/`)
+* **Live KPI Cards**: Real-time aggregation of **Total Net Worth / Balance**, **Monthly Income**, **Monthly Expenses**, and **Net Cash Flow**.
+* **Time Period Filters**: Toggle dynamically between `All Time`, `This Month`, and `Last Month`.
+* **Cash Flow Trajectory Chart**: 6-month historical visual comparison of income vs. expenses.
+* **Category Spending Distribution**: Interactive category breakdown chart with percentage shares.
+* **🧠 AI Financial Health Card**:
+  - Financial Health Score (0–100) with dynamic letter grades (`A+` to `F`).
+  - Key financial vital signs: Monthly Savings Rate, Top Spending Burn, and Recurring Expense Ratio.
+  - Actionable AI-generated optimization tips and anomaly alerts.
+* **Recent Ledger Activity**: Quick transaction feed with instant categorization and account badges.
+* **Public Landing Page**: Seamless unauthenticated welcome hero highlighting platform capabilities and quick login/registration.
+
+### 2. 💳 Accounts Portfolio & Inter-Account Transfers (`/accounts`)
+* **Multi-Account Types**: Manage `BANK`, `CASH`, `SAVINGS`, `CREDIT_CARD`, and `INVESTMENT` accounts.
+* **Opening & Current Balances**: Track starting capital alongside live transactional balances.
+* **⚡ Atomic Inter-Account Fund Transfers**:
+  - Transfer funds directly between any two user accounts.
+  - Zero balance distortion: Transfers adjust account balances atomically without inflating income or expense totals.
+  - Supports optional cross-currency destination amounts.
+
+### 3. 🧾 Transaction Ledger (`/transactions`)
+* **High-Density Ledger Table**: Paginated, sortable transaction data grid.
+* **Advanced Multi-Criteria Filtering**:
+  - Instant text search across descriptions and categories.
+  - Filter by transaction type (`INCOME`, `EXPENSE`, `TRANSFER`).
+  - Filter by category, account, date range (`Start Date` / `End Date`), and monetary range (`Min` / `Max`).
+* **CRUD Management**: Create, edit, and delete transactions with real-time balance reconciliation.
+* **Spreadsheet CSV Bulk Import**: Drag-and-drop CSV upload with backend validation error reporting and batch ingestion.
+* **Filtered CSV Export**: Download the active filtered ledger view into a CSV file.
+
+### 4. 🎯 Category Budgeting & Threshold Alerting (`/budgets`)
+* **Monthly Spending Allocations**: Set category caps per month and year.
+* **Visual Progress Meters**: Live calculation of spent vs. remaining allowance.
+* **3-Tier Status Indicators**:
+  - 🟢 **NORMAL**: Under 80% of budget limit.
+  - 🟡 **WARNING**: Between 80% and 99.9% of budget limit.
+  - 🔴 **EXCEEDED**: 100% or more of budget limit spent.
+
+### 5. 🔄 Recurring Transactions & Subscriptions (`/recurring`)
+* **Automated Schedule Tracking**: Manage subscriptions (Netflix, Spotify), utility bills, rent, and salaries.
+* **Flexible Frequencies**: `DAILY`, `WEEKLY`, `BIWEEKLY`, `MONTHLY`, `QUARTERLY`, `YEARLY`.
+* **Due Date Tracking**: Dynamic calculation of next due dates and "Days Until Due" badges.
+* **Execution Engine**:
+  - Manually post an individual recurring transaction to the ledger on demand.
+  - One-click **"Process All Due Now"** batch posting.
+
+### 6. 🏆 Milestone Savings Goals (`/goals`)
+* **Target-Driven Milestones**: Set savings goals with deadlines, target amounts, custom color badges, and icons.
+* **Progress Percentage Indicators**: Circular and bar visualizations tracking progress toward completion.
+* **Direct Account Contributions**: Transfer money from any linked account directly into a goal—automatically deducting account balance and updating goal progress.
+
+### 7. 📈 Financial Reports & Backup (`/reports`)
+* **Monthly Cash Flow Statement**: Net income, total expenses, savings rate, and category breakdowns.
+* **Annual Financial Summary**: 12-month trajectory curves and top annual expense drivers.
+* **Complete JSON Backup**: One-click download of the user's entire financial portfolio (`apex_finance_backup_YYYY-MM-DD.json`), including accounts, transactions, budgets, recurring rules, and savings goals.
+* **Financial Ledger CSV Download**: Direct export of historical ledger records.
+
+### 8. 🌍 Global Multi-Currency Engine
+* Built-in dynamic currency switcher supporting 10+ world currencies:
+  - `INR (₹)`, `USD ($)`, `EUR (€)`, `GBP (£)`, `CAD (CA$)`, `AUD (AU$)`, `JPY (¥)`, `AED (د.إ)`, `CHF (CHF)`, `CNY (¥)`, `BRL (R$)`.
+* Converts and formats every balance, transaction amount, and metric dynamically with localized currency symbols.
+
+### 9. 🔔 Dynamic In-App Notifications
+* Central notification drawer displaying real-time alerts:
+  - Budget threshold warnings (80% and 100% caps).
+  - Upcoming due bills and subscriptions.
+  - Account balance notices.
+* One-click dismiss individual alerts or clear all notifications.
+
+### 10. 🔐 Authentication & Session Security (`/login`, `/register`)
+* User registration and login with form validation.
+* Secure JWT storage in `localStorage`.
+* Automatic request authorization via Axios request interceptor.
+* Seamless session expiration handling with automatic login redirect.
+
+---
+
+## 📂 Project Architecture & File Structure
+
+```
+finance-client/
+├── package.json                        # Dependencies, scripts & metadata
+├── vite.config.ts                      # Vite configuration & TanStack plugins
+├── tsconfig.json                       # TypeScript compiler options
+├── biome.json                          # Biome linter & formatter rules
+├── vercel.json                         # Vercel serverless deployment config
+├── .env.example                        # Template environment variables
+├── .env.local                          # Local environment variables
+└── src/
+    ├── routes/                         # TanStack Router file-based routes
+    │   ├── __root.tsx                  # Root layout, theme, auth, & navbar wrapper
+    │   ├── index.tsx                   # Dashboard overview & landing page
+    │   ├── accounts.tsx                # Account management & inter-account transfers
+    │   ├── transactions.tsx            # Transaction ledger, filters, & CSV import/export
+    │   ├── budgets.tsx                 # Category budgets & threshold monitors
+    │   ├── recurring.tsx               # Recurring transaction scheduler & batch processor
+    │   ├── goals.tsx                   # Savings goals & account contributions
+    │   ├── reports.tsx                 # Financial reports, charts, & full JSON backup
+    │   ├── login.tsx                   # User login authentication
+    │   └── register.tsx                # User registration
+    ├── components/
+    │   ├── layout/
+    │   │   └── AppNavbar.tsx           # Sticky glassmorphism header, nav links & notifications
+    │   └── currency/
+    │       └── CurrencySelector.tsx    # Currency switcher dropdown modal
+    ├── lib/
+    │   ├── api.ts                      # Axios client, TypeScript interfaces & REST API methods
+    │   ├── auth-context.tsx            # React authentication state provider
+    │   ├── currency-context.tsx        # Multi-currency state & exchange rate converter
+    │   ├── theme-context.tsx           # Dark/light theme mode context
+    │   ├── mui-provider.tsx            # Material UI dark theme configuration
+    │   └── utils.ts                    # Classnames & styling helpers
+    ├── routeTree.gen.ts                # Auto-generated TanStack route tree
+    ├── router.tsx                      # Router instance initialization
+    └── styles.css                      # Tailwind CSS v4 directives & glassmorphic utilities
+```
+
+---
+
+## ⚙️ Environment Variables
+
+Create a `.env.local` file in `finance-client/` (refer to `.env.example`):
 
 ```bash
-npm install
-npm run dev
+# Backend REST API Base URL (must end with /api)
+VITE_API_URL=http://localhost:8080/api
 ```
 
-# Building For Production
-
-To build this application for production:
-
+### Production Deployment (e.g. Vercel)
+In your Vercel project settings under **Settings > Environment Variables**, set:
 ```bash
-npm run build
+VITE_API_URL=https://your-backend-service.onrender.com/api
 ```
 
-## Styling
+---
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+## 🚀 Getting Started
 
-### Removing Tailwind CSS
+### Prerequisites
+* **Node.js**: v18.0.0 or newer (v20+ recommended)
+* **npm** or **pnpm** installed
+* Running backend service (ApexFinance Spring Boot API at `http://localhost:8080`)
 
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
-
-## Linting & Formatting
-
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
-
-
-```bash
-npm run lint
-npm run format
-npm run check
-```
-
-
-## Deploy to Vercel
-
-1. Push this repo to GitHub, GitLab, or Bitbucket
-2. In Vercel, choose **Add New > Project** and import the repo
-3. Keep the detected TanStack Start framework settings
-4. Add production values from `.env.example` under **Settings > Environment Variables**
-5. Deploy
-
-Vercel runs the build script and deploys Nitro's output as Vercel Functions and
-static assets. The included `vercel.json` makes framework detection explicit.
-
-Variables prefixed with `VITE_` are included in the browser bundle. Keep secrets
-unprefixed so they remain server-only.
-
-
-## Shadcn
-
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
-
-```bash
-pnpm dlx shadcn@latest add button
-```
-
-
-## T3Env
-
-- You can use T3Env to add type safety to your environment variables.
-- Add Environment variables to the `src/env.mjs` file.
-- Use the environment variables in your code.
-
-### Usage
-
-```ts
-import { env } from "#/env";
-
-console.log(env.VITE_APP_TITLE);
-```
-
-
-
-
-
-## Setting up Better Auth
-
-1. Generate and set the `BETTER_AUTH_SECRET` environment variable in your `.env.local`:
-
+### Installation
+1. **Navigate to the frontend directory**:
    ```bash
-   npx -y @better-auth/cli secret
+   cd finance-client
    ```
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-2. Visit the [Better Auth documentation](https://www.better-auth.com) to unlock the full potential of authentication in your app.
+---
 
-### Adding a Database (Optional)
+## 📜 Available Scripts
 
-Better Auth can work in stateless mode, but to persist user data, add a database:
+| Script | Command | Description |
+|---|---|---|
+| **Development** | `npm run dev` | Starts the Vite dev server on `http://localhost:3000` with `.env.local` |
+| **Route Generation** | `npm run generate-routes` | Re-generates `routeTree.gen.ts` from files in `src/routes/` |
+| **Production Build** | `npm run build` | Compiles client and server bundles for production |
+| **Preview** | `npm run preview` | Locally previews the compiled production build |
+| **Start Server** | `npm run start` | Runs the compiled Nitro server from `.output/` |
+| **Format** | `npm run format` | Formats all source files with Biome |
+| **Lint** | `npm run lint` | Runs the Biome linter |
+| **Check** | `npm run check` | Runs formatting and lint verification together |
 
-```typescript
-// src/lib/auth.ts
-import { betterAuth } from "better-auth";
-import { Pool } from "pg";
+---
 
-export const auth = betterAuth({
-  database: new Pool({
-    connectionString: process.env.DATABASE_URL,
-  }),
-  // ... rest of config
-});
-```
+## 🚢 Production Deployment to Vercel
 
-Then run migrations:
+1. Push your repository to GitHub, GitLab, or Bitbucket.
+2. In the [Vercel Dashboard](https://vercel.com/), select **Add New > Project** and import your repository.
+3. Set the **Root Directory** to `finance-client`.
+4. Ensure framework preset is detected as **TanStack Start** (or Other with `npm run build`).
+5. Add the environment variable:
+   - `VITE_API_URL` = `https://your-backend-api.onrender.com/api`
+6. Click **Deploy**. Vercel will build the Vite assets and deploy the Nitro SSR engine to Vercel Serverless Functions.
 
-```bash
-npx -y @better-auth/cli migrate
-```
+---
 
+## 🤝 Backend API Integration
 
-## Setting up Neon
-
-When running the `dev` command, `vite-plugin-neon-new` will identify there is not a database setup. It will then create and seed a claimable database.
-
-It is the same process as [Neon Launchpad](https://neon.new).
-
-> [!IMPORTANT]  
-> Claimable databases expire in 72 hours.
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+The frontend client communicates seamlessly with the Spring Boot backend service. All requests automatically:
+- Append `Authorization: Bearer <token>` from `localStorage` (`finance_token`).
+- Catch `401 Unauthorized` responses and route unauthenticated users to `/login`.
+- Extract human-readable error messages from standard Spring Boot `ErrorResponse` and `ValidationErrorResponse` records.
